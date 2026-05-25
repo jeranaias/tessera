@@ -116,10 +116,11 @@ UAF domain-overlay construct." See [`../AUTHORS.md`](../AUTHORS.md).
 
 ## Roadmap to actual viability
 
-1. ✅ **First model-import adapter (shipped):** [`adapters/sysmlv2/`](../adapters/sysmlv2)
-   derives a MOSA-BOM from a **SysML v2** model, so the manifest is **derived, not
-   declared** — the start of attestation → verification. Documented subset; next:
-   derive objectives/requirements, and add UAF/SysML 1.x XMI + Capella adapters.
+1. ✅ **Model-import adapters (shipped):** [`adapters/sysmlv2/`](../adapters/sysmlv2)
+   (SysML v2 textual; modules, interfaces, objectives, requirements, cost/risk) and
+   [`adapters/xmi/`](../adapters/xmi) (real Papyrus/EMF **UML/SysML XMI**, validated
+   against the SimpleExcavator + Airbag models). The manifest is **derived, not
+   declared** — attestation → verification. Next: ports/connectors + Capella `.aird`.
 2. ✅ **CI gate (shipped):** `.github/workflows/ci.yml` builds, tests every pack,
    gates both examples, runs the adapter, runs the end-to-end derive→gate pipe,
    signs a receipt + verifies it, exercises the waiver flow, and rejects a

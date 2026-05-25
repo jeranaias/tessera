@@ -104,9 +104,22 @@ raw_deny contains f if {
 	}
 }
 
-# Pillar 2: every module must carry a valid severability classification.
+# Pillar 2: every module must carry a severability classification...
 raw_deny contains f if {
 	some m in modules_in
+	not m.severability
+	f := {
+		"code": "MODULE_NO_SEVERABILITY",
+		"severity": "high",
+		"subject": m.id,
+		"msg": sprintf("module %q has no severability classification (model did not declare it)", [m.id]),
+	}
+}
+
+# ...and it must be one of the known classes.
+raw_deny contains f if {
+	some m in modules_in
+	m.severability
 	not severability_ids[m.severability]
 	f := {
 		"code": "MODULE_BAD_SEVERABILITY",

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Small hand-authored model that faithfully mirrors the real Papyrus SysML XMI
+     encoding (validated against SimpleExcavator + Airbag), with @MOSA comments
+     added so the adapter's attribute extraction can be exercised end to end. -->
+<xmi:XMI xmi:version="20131001"
+    xmlns:xmi="http://www.omg.org/spec/XMI/20131001"
+    xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML"
+    xmlns:Blocks="http://www.eclipse.org/papyrus/sysml/1.4/SysML/Blocks">
+  <uml:Model xmi:id="_model" name="RadioModel">
+    <packagedElement xmi:type="uml:Class" xmi:id="_rf" name="RF"/>
+    <packagedElement xmi:type="uml:Class" xmi:id="_wf" name="Waveform"/>
+    <packagedElement xmi:type="uml:Class" xmi:id="_crypto" name="Crypto"/>
+
+    <packagedElement xmi:type="uml:Association" xmi:id="_ifRfWf" name="ifRfWf" memberEnd="_e1 _e2">
+      <ownedEnd xmi:type="uml:Property" xmi:id="_e1" name="rf" type="_rf" association="_ifRfWf"/>
+      <ownedEnd xmi:type="uml:Property" xmi:id="_e2" name="wf" type="_wf" association="_ifRfWf"/>
+    </packagedElement>
+    <packagedElement xmi:type="uml:Association" xmi:id="_ifWfCrypto" name="ifWfCrypto" memberEnd="_e3 _e4">
+      <ownedEnd xmi:type="uml:Property" xmi:id="_e3" name="wf" type="_wf" association="_ifWfCrypto"/>
+      <ownedEnd xmi:type="uml:Property" xmi:id="_e4" name="crypto" type="_crypto" association="_ifWfCrypto"/>
+    </packagedElement>
+
+    <ownedComment xmi:type="uml:Comment" xmi:id="_c1" annotatedElement="_rf">
+      <body>@MOSA severability=severable; supplier=VendorA; cost=300000;</body>
+    </ownedComment>
+    <ownedComment xmi:type="uml:Comment" xmi:id="_c2" annotatedElement="_wf">
+      <body>@MOSA severability=severable; supplier=VendorB;</body>
+    </ownedComment>
+    <ownedComment xmi:type="uml:Comment" xmi:id="_c3" annotatedElement="_crypto">
+      <body>@MOSA severability=non-severable; supplier=GovGFE; cost=1200000; riskLikelihood=4; riskConsequence=5;</body>
+    </ownedComment>
+    <ownedComment xmi:type="uml:Comment" xmi:id="_c4" annotatedElement="_ifRfWf">
+      <body>@MOSA key=true; standards=MORA,REDHAWK; documented=true;</body>
+    </ownedComment>
+    <ownedComment xmi:type="uml:Comment" xmi:id="_c5" annotatedElement="_ifWfCrypto">
+      <body>@MOSA key=true; standards=VENDOR-PROPRIETARY-BUS; documented=false;</body>
+    </ownedComment>
+  </uml:Model>
+  <Blocks:Block xmi:id="_b1" base_Class="_rf"/>
+  <Blocks:Block xmi:id="_b2" base_Class="_wf"/>
+  <Blocks:Block xmi:id="_b3" base_Class="_crypto"/>
+</xmi:XMI>

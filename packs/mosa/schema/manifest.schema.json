@@ -36,14 +36,14 @@
       "description": "Severable units of the system architecture (MOSA: employ modular design).",
       "items": {
         "type": "object",
-        "required": ["id", "name", "severability"],
+        "required": ["id", "name"],
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
           "name": { "type": "string" },
           "severability": {
             "type": "string",
-            "description": "Classification id from library/severability.yaml.",
+            "description": "Classification id from library/severability.yaml. If omitted, the gate flags MODULE_BAD_SEVERABILITY (the model didn't declare it).",
             "examples": ["severable", "partially-severable", "non-severable"]
           },
           "supplier": { "type": "string" },

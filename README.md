@@ -197,6 +197,8 @@ tessera/
 ├── cmd/tessera/main.go             ← the engine (Go; embeds OPA; ~300 lines, domain-agnostic)
 ├── rulestest/                      ← `go test` harness that runs EVERY pack's rules
 ├── adapters/sysmlv2/               ← derive a manifest FROM a SysML v2 model (gap-closer)
+├── adapters/xmi/                   ← derive FROM real UML/SysML XMI (Papyrus/Cameo); real test model
+
 ├── .github/workflows/ci.yml        ← CI gate: build, test, both packs, adapter, end-to-end
 └── packs/
     ├── mosa/                       ← flagship pack
@@ -233,7 +235,7 @@ Rough draft, but it runs and it's tested in CI. Real and working today:
 - **stakeholder reports** (`tessera report --role peo|pm|engineer`) — role-tailored markdown from a receipt
 - **cost/risk → value** — total cost, cost locked behind non-severable modules, high-risk advisories
 - **MOSA pack** + **cyber-RMF** demonstration pack (multi-domain, content-only)
-- **SysML v2 adapter** — derive a manifest from a model (attestation → verification)
+- **model adapters** — derive a manifest from a **SysML v2** model *or* a real **UML/SysML XMI** (Papyrus/Cameo) export (attestation → verification)
 
 **Deferred** (and named honestly in [`docs/VIABILITY.md`](docs/VIABILITY.md)):
 deriving objectives/requirements in the adapter, UAF/SysML 1.x XMI + Capella

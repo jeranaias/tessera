@@ -63,8 +63,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Adapter self-tests
+      - name: Adapter self-tests (SysML v2)
         run: python adapters/sysmlv2/test_sysml2bom.py
+
+      - name: Adapter self-tests (UML/SysML XMI, incl. a real Papyrus model)
+        run: python adapters/xmi/test_uml2bom.py
+
+      - name: Derive a manifest from a REAL Papyrus XMI, then gate
+        run: |
+          set +e
+          python adapters/xmi/uml2bom.py adapters/xmi/examples/excavator.uml | ./tessera --pack packs/mosa --manifest -
+          code=$?
+          test "$code" -eq 2 || { echo "expected exit 2 (real model declares no severability), got $code"; exit 1; }
 
       - name: End-to-end — derive manifest from a SysML v2 model, then gate
         run: |

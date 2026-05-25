@@ -65,6 +65,20 @@ test_bad_severability_flagged if {
 	count({f | some f in res.deny; f.code == "MODULE_BAD_SEVERABILITY"}) == 1
 }
 
+# A module with NO severability key is flagged (regression: the message must not
+# reference the missing value, or the finding would silently vanish).
+test_missing_severability_flagged if {
+	bom := {
+		"modules": [{"id": "M1", "name": "M1"}],
+		"interfaces": [],
+		"objectives": [],
+		"requirements": [],
+	}
+	res := result with input as bom with data.library as stub_library
+	count({f | some f in res.deny; f.code == "MODULE_NO_SEVERABILITY"}) == 1
+	res.pass == false
+}
+
 # Metrics compute as expected for a clean 1-key-interface manifest.
 test_metrics_full_marks if {
 	bom := {
