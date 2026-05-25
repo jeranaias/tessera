@@ -1,0 +1,72 @@
+# Worked MOSA-BOM for an illustrative software-defined radio program.
+# Demonstrates a passing core plus deliberately-seeded issues to show rules firing.
+mosaManifestVersion: "0.1"
+
+program:
+  id: PRG-SDR-001
+  name: Example Modular SDR
+  milestone: MS-B
+  tier: minimal
+
+modules:
+  - id: M-RF
+    name: RF Front End
+    severability: severable
+    supplier: VendorA
+    sourceRef: "model://sdr/rs#RFFrontEnd"
+  - id: M-WAVEFORM
+    name: Waveform Processing
+    severability: severable
+    supplier: VendorB
+    sourceRef: "model://sdr/rs#Waveform"
+  - id: M-CRYPTO
+    name: Crypto Subsystem
+    severability: non-severable        # -> WARN: non-severable modularity risk
+    supplier: GovGFE
+    sourceRef: "model://sdr/rs#Crypto"
+  - id: M-CONTROL
+    name: Radio Control App
+    severability: severable
+    supplier: VendorA
+    sourceRef: "model://sdr/rs#Control"
+
+interfaces:
+  - id: IF-RF-WF
+    name: RF <-> Waveform
+    key: true
+    between: [M-RF, M-WAVEFORM]
+    standards: [MORA, REDHAWK]
+    documented: true
+  - id: IF-WF-CTRL
+    name: Waveform <-> Control
+    key: true
+    between: [M-WAVEFORM, M-CONTROL]
+    standards: [DDS-1.4]
+    documented: true
+  - id: IF-CTRL-CRYPTO
+    name: Control <-> Crypto
+    key: true
+    between: [M-CONTROL, M-CRYPTO]
+    standards: [VENDOR-PROPRIETARY-BUS]   # -> DENY: key iface, no open standard
+    documented: false                     # -> WARN: undocumented key iface
+  - id: IF-INTERNAL
+    name: Internal control bus
+    key: false
+    between: [M-CONTROL, M-RF]
+    standards: []
+
+objectives:
+  - id: OBJ-MODULAR-DESIGN
+    tracesTo: [M-RF, M-WAVEFORM, M-CONTROL]
+  - id: OBJ-KEY-INTERFACES
+    tracesTo: [IF-RF-WF, IF-WF-CTRL, IF-CTRL-CRYPTO]
+  - id: OBJ-OPEN-STANDARDS
+    tracesTo: [IF-RF-WF, IF-WF-CTRL]
+
+requirements:
+  - id: REQ-FACE-CONF
+    conformance: verified
+    tracesTo: [IF-RF-WF]
+  - id: REQ-DDS-CONF
+    conformance: planned
+    tracesTo: [IF-WF-CTRL]

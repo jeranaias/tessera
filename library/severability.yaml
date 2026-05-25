@@ -1,0 +1,27 @@
+# Module severability taxonomy. "Severable" = the module can be replaced or
+# re-competed without re-engineering the rest of the system. This is the heart of
+# MOSA modular-design value (vendor lock avoidance, tech refresh, competition).
+# A module's `severability` field in the MOSA-BOM MUST be one of these ids.
+
+version: "0.1"
+severability_classes:
+  - id: severable
+    name: Severable
+    score: 1.0
+    summary: >
+      Replaceable/re-competable across a documented open interface with no
+      redesign of adjacent modules.
+
+  - id: partially-severable
+    name: Partially severable
+    score: 0.5
+    summary: >
+      Replaceable but requires bounded rework of adjacent modules or a
+      partially proprietary interface.
+
+  - id: non-severable
+    name: Non-severable
+    score: 0.0
+    summary: >
+      Cannot be replaced without significant re-engineering; a candidate
+      vendor-lock / modularity risk that should be justified.

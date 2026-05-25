@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jeranaias/mosa-overlay/schema/mosa-manifest.schema.json",
+  "title": "MOSA-BOM (MOSA Bill of Materials)",
+  "description": "Lightweight, tool-agnostic manifest of the facts a MOSA conformance rules pack needs. The program's own sidecar file; references its architecture, never mutates it.",
+  "type": "object",
+  "required": ["mosaManifestVersion", "program", "modules", "interfaces"],
+  "additionalProperties": false,
+  "properties": {
+    "mosaManifestVersion": {
+      "type": "string",
+      "description": "Schema version this manifest targets.",
+      "examples": ["0.1"]
+    },
+    "program": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "milestone": {
+          "type": "string",
+          "description": "Acquisition milestone this manifest is submitted for.",
+          "examples": ["MS-A", "MS-B", "MS-C", "CDR", "PDR"]
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["minimal", "extended"],
+          "default": "minimal"
+        }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "description": "Severable units of the system architecture (MOSA: employ modular design).",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "severability"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "severability": {
+            "type": "string",
+            "description": "Classification id from library/severability.yaml.",
+            "examples": ["severable", "partially-severable", "non-severable"]
+          },
+          "supplier": { "type": "string" },
+          "sourceRef": {
+            "type": "string",
+            "description": "URI/ID pointing into the underlying architecture model (the non-disruptive link)."
+          }
+        }
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "description": "Connections between modules (MOSA: designate key interfaces, use open standards for them).",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "key", "between"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "key": {
+            "type": "boolean",
+            "description": "Is this a designated KEY interface?"
+          },
+          "between": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2,
+            "description": "Module ids this interface connects."
+          },
+          "standards": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Standard ids (from library/standards.yaml) this interface conforms to."
+          },
+          "documented": {
+            "type": "boolean",
+            "default": false,
+            "description": "Is the interface specification publicly/contractually documented?"
+          },
+          "sourceRef": { "type": "string" }
+        }
+      }
+    },
+    "objectives": {
+      "type": "array",
+      "description": "MOSA objectives this program asserts, with traceability to elements that satisfy them.",
+      "items": {
+        "type": "object",
+        "required": ["id", "tracesTo"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Objective id from library/objectives.yaml."
+          },
+          "tracesTo": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Module/interface/requirement ids that realize this objective."
+          }
+        }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "conformance"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "conformance": {
+            "type": "string",
+            "enum": ["verified", "planned", "none"],
+            "description": "MOSA: certify conformance."
+          },
+          "tracesTo": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "cost": {
+      "type": "array",
+      "description": "EXTENDED tier only. Cost items keyed to modules for value-scoring.",
+      "items": {
+        "type": "object",
+        "required": ["ref", "pointEstimate"],
+        "additionalProperties": false,
+        "properties": {
+          "ref": { "type": "string", "description": "module/interface id" },
+          "pointEstimate": { "type": "number" },
+          "low": { "type": "number" },
+          "high": { "type": "number" },
+          "unit": { "type": "string", "default": "USD" }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "description": "EXTENDED tier only. Risk register entries keyed to elements.",
+      "items": {
+        "type": "object",
+        "required": ["id", "likelihood", "consequence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "ref": { "type": "string" },
+          "likelihood": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "consequence": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  }
+}

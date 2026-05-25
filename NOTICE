@@ -1,0 +1,18 @@
+MOSA Overlay
+Copyright 2026 MOSA Overlay contributors
+
+This product includes software developed as an open (Apache-2.0) reference
+implementation of a Modular Open Systems Approach (MOSA) conformance rules
+pack and manifest ("MOSA-BOM") checker.
+
+The underlying concept and design — the MOSA Domain Overlay, a non-disruptive
+model-based overlay for assessing and enforcing MOSA compliance across programs
+— originates with Tony Maida. This implementation is an independent open-source
+realization of that concept.
+
+MOSA is a U.S. Department of War / Department of Defense statutory acquisition
+requirement (10 U.S.C. Section 4401). This project is an independent open-source
+effort and is not endorsed by, affiliated with, or an official product of any
+government agency. "FACE", "SOSA", "CMOSS", "VICTORY", and other standard names
+referenced in the library are trademarks/marks of their respective owners and
+are used here only for nominative reference.

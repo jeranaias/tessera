@@ -1,0 +1,46 @@
+# MOSA objectives / pillars. Derived from 10 U.S.C. 4401 and the 2019 Tri-Service
+# MOSA memorandum. A program's manifest asserts which objectives it claims and
+# traces each to the elements that realize it; rules check the traceability is
+# non-empty and that supporting elements actually satisfy the related technical
+# rules (e.g. OBJ-OPEN-STANDARDS is only credible if key interfaces use open stds).
+
+version: "0.1"
+objectives:
+  - id: OBJ-ENABLING-ENVIRONMENT
+    pillar: 1
+    name: Establish an enabling environment
+    summary: >
+      Supportive requirements, business practices, and technology development
+      that make modular open design achievable across the lifecycle.
+
+  - id: OBJ-MODULAR-DESIGN
+    pillar: 2
+    name: Employ modular design
+    summary: >
+      Decompose the system into severable modules with well-defined boundaries
+      to enable competition, reuse, and incremental upgrade.
+    relatesTo: [severability]
+
+  - id: OBJ-KEY-INTERFACES
+    pillar: 3
+    name: Designate key interfaces
+    summary: >
+      Identify the interfaces whose openness most affects competition,
+      interoperability, and tech refresh; designate them explicitly.
+    relatesTo: [interfaces.key]
+
+  - id: OBJ-OPEN-STANDARDS
+    pillar: 4
+    name: Use open standards for key interfaces
+    summary: >
+      Each designated key interface should conform to a widely supported,
+      vendor-neutral open standard.
+    relatesTo: [interfaces.standards]
+
+  - id: OBJ-CERTIFY-CONFORMANCE
+    pillar: 5
+    name: Certify conformance
+    summary: >
+      Verify and certify that the as-built system conforms to the modular open
+      systems approach and its designated standards.
+    relatesTo: [requirements.conformance]

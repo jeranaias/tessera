@@ -1,0 +1,19 @@
+# Built binary
+mosa-check
+mosa-check.exe
+
+# Signing keys — NEVER commit private keys
+*.key
+*.key.pub
+mosa-ed25519.key
+mosa-ed25519.key.pub
+
+# Generated receipts / chains
+receipt.json
+*.receipt.json
+*.chain
+
+# Go
+/vendor/
+*.test
+*.out

@@ -1,0 +1,78 @@
+# Open-standards registry — the reusable, versioned content at the heart of the
+# rules pack (design point 2). A "standard" here is something a KEY interface can
+# conform to. `open: true` means it satisfies MOSA "use open standards for key
+# interfaces" (publicly maintained, vendor-neutral, available without proprietary
+# lock-in). Maintained like a CIS Benchmark / STIG: PRs add/retire entries.
+#
+# This is a starter set, not exhaustive. Verify governance/version before relying
+# on any entry in a real submission.
+
+version: "0.1"
+standards:
+  - id: FACE-3.1
+    name: Future Airborne Capability Environment (FACE) Technical Standard 3.1
+    steward: The Open Group FACE Consortium
+    domain: avionics
+    open: true
+
+  - id: SOSA-1.0
+    name: Sensor Open Systems Architecture (SOSA) Technical Standard 1.0
+    steward: The Open Group SOSA Consortium
+    domain: sensors-c5isr
+    open: true
+
+  - id: CMOSS
+    name: C5ISR/EW Modular Open Suite of Standards (CMOSS)
+    steward: U.S. Army CCDC C5ISR Center
+    domain: ground-c5isr
+    open: true
+
+  - id: OMS-UCI
+    name: Open Mission Systems / Universal Command and Control Interface (OMS/UCI)
+    steward: U.S. Air Force
+    domain: mission-systems
+    open: true
+
+  - id: VICTORY-1.9
+    name: Vehicular Integration for C4ISR/EW Interoperability (VICTORY)
+    steward: VICTORY Standards Support Office
+    domain: ground-vehicle
+    open: true
+
+  - id: NGVA-STANAG-4754
+    name: NATO Generic Vehicle Architecture (NGVA), STANAG 4754
+    steward: NATO
+    domain: ground-vehicle
+    open: true
+
+  - id: STANAG-4586
+    name: Standard Interfaces of UAV Control System (UCS) for NATO UAV Interoperability
+    steward: NATO
+    domain: uas
+    open: true
+
+  - id: MORA
+    name: Modular Open RF Architecture (MORA)
+    steward: U.S. Army (part of CMOSS)
+    domain: rf-ew
+    open: true
+
+  - id: REDHAWK
+    name: REDHAWK Software-Defined Radio framework
+    steward: Geon Technologies / community
+    domain: sdr
+    open: true
+
+  - id: DDS-1.4
+    name: OMG Data Distribution Service (DDS) 1.4
+    steward: Object Management Group
+    domain: middleware
+    open: true
+
+  # Example of a NON-open entry, kept so rules can flag it. A key interface
+  # claiming conformance to this should FAIL the open-standards rule.
+  - id: VENDOR-PROPRIETARY-BUS
+    name: Example proprietary vendor bus (illustrative)
+    steward: (proprietary)
+    domain: illustrative
+    open: false
