@@ -106,6 +106,10 @@ go build -o tessera.exe ./cmd/tessera
   --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
 ```
 
+Other commands: `tessera packs` lists available packs, `tessera version` prints
+the version. Prebuilt binaries are attached to each
+[release](https://github.com/jeranaias/tessera/releases).
+
 Real output from the MOSA example (an illustrative software-defined radio):
 
 ```

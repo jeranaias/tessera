@@ -22,3 +22,6 @@ receipt.json
 # Python
 __pycache__/
 *.pyc
+
+# Cross-compiled release artifacts
+/dist/

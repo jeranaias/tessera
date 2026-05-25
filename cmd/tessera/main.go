@@ -72,17 +72,57 @@ type receipt struct {
 
 func main() {
 	args := os.Args[1:]
-	cmd := "check"
-	if len(args) > 0 && (args[0] == "check" || args[0] == "verify") {
-		cmd, args = args[0], args[1:]
+	cmd := "check" // default subcommand (back-compat: `tessera --pack ...`)
+	if len(args) > 0 {
+		switch args[0] {
+		case "check", "verify", "packs", "version":
+			cmd, args = args[0], args[1:]
+		}
 	}
 	switch cmd {
 	case "check":
 		checkCmd(args)
 	case "verify":
 		verifyCmd(args)
+	case "packs":
+		packsCmd(args)
+	case "version":
+		fmt.Printf("tessera %s\n", toolVersion)
 	default:
-		fail("unknown subcommand %q (want: check | verify)", cmd)
+		fail("unknown subcommand %q (want: check | verify | packs | version)", cmd)
+	}
+}
+
+// packsCmd lists the packs discovered under --dir.
+func packsCmd(args []string) {
+	fs := flag.NewFlagSet("packs", flag.ExitOnError)
+	var dir string
+	fs.StringVar(&dir, "dir", "packs", "directory containing packs")
+	_ = fs.Parse(args)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		fail("listing packs in %s: %v", dir, err)
+	}
+	n := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		packDir := filepath.Join(dir, e.Name())
+		if _, statErr := os.Stat(filepath.Join(packDir, "pack.yaml")); statErr != nil {
+			continue
+		}
+		p, perr := loadPack(packDir)
+		if perr != nil {
+			fmt.Fprintf(os.Stderr, "  %-14s (invalid pack: %v)\n", e.Name(), perr)
+			continue
+		}
+		fmt.Printf("%-14s %s  (v%s)  query=%s\n", p.Pack, p.Title, p.Version, p.Query)
+		n++
+	}
+	if n == 0 {
+		fmt.Fprintf(os.Stderr, "no packs found under %s\n", dir)
 	}
 }
 
