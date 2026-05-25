@@ -41,9 +41,9 @@ The `cyber-rmf` pack is a minimal worked example of exactly this.
 go test ./...
 
 # end-to-end smoke test against the worked examples (expect FAIL + exit 2)
-go build -o overlay-check.exe ./cmd/overlay-check
-./overlay-check.exe --pack packs/mosa      --manifest packs/mosa/examples/example-radio/manifest.yaml
-./overlay-check.exe --pack packs/cyber-rmf --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
+go build -o tessera.exe ./cmd/tessera
+./tessera.exe --pack packs/mosa      --manifest packs/mosa/examples/example-radio/manifest.yaml
+./tessera.exe --pack packs/cyber-rmf --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
 ```
 
 ## Attribution

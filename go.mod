@@ -1,4 +1,4 @@
-module github.com/jeranaias/mosa-overlay
+module github.com/jeranaias/tessera
 
 go 1.22
 

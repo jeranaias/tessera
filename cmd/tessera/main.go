@@ -1,8 +1,8 @@
-// Command overlay-check is a domain-agnostic conformance engine. It evaluates a
+// Command tessera is a domain-agnostic conformance engine. It evaluates a
 // manifest against a "pack" — a self-contained bundle of a rules pack (Rego) and
 // a reusable library — and emits an Ed25519-signed, hash-chained receipt.
 //
-//	overlay-check --pack packs/mosa --manifest m.yaml --out receipt.json
+//	tessera --pack packs/mosa --manifest m.yaml --out receipt.json
 //
 // The engine knows nothing about any specific domain. MOSA is just the first
 // pack; cyber/RMF is a second. A pack is described by a pack.yaml:
@@ -76,7 +76,7 @@ func main() {
 	flag.StringVar(&packDir, "pack", "", "path to a pack directory (containing pack.yaml)")
 	flag.StringVar(&manifestPath, "manifest", "", "path to the manifest to check (yaml/json)")
 	flag.StringVar(&outPath, "out", "", "path to write the signed receipt (optional)")
-	flag.StringVar(&keyPath, "key", "overlay-ed25519.key", "ed25519 private key file (generated if absent)")
+	flag.StringVar(&keyPath, "key", "tessera-ed25519.key", "ed25519 private key file (generated if absent)")
 	flag.Parse()
 
 	if packDir == "" || manifestPath == "" {
@@ -116,7 +116,7 @@ func main() {
 	sig := ed25519.Sign(priv, sum[:])
 
 	rec := receipt{
-		Tool:        "overlay-check",
+		Tool:        "tessera",
 		ToolVersion: toolVersion,
 		Pack:        pack.Pack,
 		PackTitle:   pack.Title,

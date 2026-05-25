@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jeranaias/mosa-overlay/schema/mosa-manifest.schema.json",
+  "$id": "https://github.com/jeranaias/tessera/packs/mosa/schema/manifest.schema.json",
   "title": "MOSA-BOM (MOSA Bill of Materials)",
   "description": "Lightweight, tool-agnostic manifest of the facts a MOSA conformance rules pack needs. The program's own sidecar file; references its architecture, never mutates it.",
   "type": "object",

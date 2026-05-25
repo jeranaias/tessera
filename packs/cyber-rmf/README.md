@@ -1,6 +1,6 @@
 # cyber-rmf pack — DEMONSTRATION ONLY
 
-> ⚠️ **This pack exists to prove one thing: the `overlay-check` engine is
+> ⚠️ **This pack exists to prove one thing: the `tessera` engine is
 > domain-agnostic.** It is the *same* engine, the *same* manifest + rules +
 > signed-receipt pattern as the MOSA pack — pointed at a completely different
 > concern (NIST SP 800-53 / RMF control coverage).
@@ -15,7 +15,7 @@
 Run the same binary, just a different `--pack`:
 
 ```bash
-overlay-check --pack packs/cyber-rmf --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
+tessera --pack packs/cyber-rmf --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
 ```
 
 Expected (the example is seeded to fail):

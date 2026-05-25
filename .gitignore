@@ -1,8 +1,6 @@
 # Built binaries — anchored to repo root so they never match cmd/<name>/ SOURCE dirs
-/overlay-check
-/overlay-check.exe
-/mosa-check
-/mosa-check.exe
+/tessera
+/tessera.exe
 *.exe
 
 # Signing keys — NEVER commit private keys

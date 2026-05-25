@@ -1,4 +1,4 @@
-# Overlay Check
+# Tessera
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Status: rough draft](https://img.shields.io/badge/status-rough%20draft-orange.svg)](#status--honest-scope)
@@ -6,6 +6,11 @@
 
 **A domain-agnostic, signed conformance gate — checklist-as-code for cross-cutting
 compliance concerns. MOSA is the first pack; it is not the only one.**
+
+> *Tessera* — a single tile in a mosaic, and a Roman token of proof or
+> authorization. Both meanings are the point: programs are assembled from
+> **modular tiles**, and Tessera issues a **signed token** that says whether the
+> assembly conforms.
 
 > **Concept & design: Tony Maida**, building on the UAF "Domain Overlay" construct
 > (see [`AUTHORS.md`](AUTHORS.md)). This repo is an open-source (Apache-2.0)
@@ -16,9 +21,6 @@ compliance concerns. MOSA is the first pack; it is not the only one.**
 > a narrow, useful *verification-and-attestation* layer. Honesty about scope is
 > the point.
 
-*(The repo is named `mosa-overlay` for historical reasons; the engine is general
-and the binary is `overlay-check`.)*
-
 ---
 
 ## What is this, in plain English?
@@ -28,7 +30,7 @@ A "Domain Overlay" is a cross-cutting check you can lay over a program — for
 *without* touching the underlying system. You add it to get a verdict; you remove
 it and nothing breaks.
 
-This project makes that concrete and cheap:
+Tessera makes that concrete and cheap:
 
 1. A program writes a small **manifest** (a "parts list" / declaration of facts).
 2. You run one binary against it with a chosen **pack** of rules.
@@ -46,9 +48,9 @@ to fund, police, and operate them forever. Everything that actually scaled did
 the opposite and shipped **content, not a platform**: security checklists
 (STIGs/CIS), software ingredient labels (SBOM), code scanners (Semgrep/Trivy).
 
-So this is an **engine + packs**:
+So Tessera is an **engine + packs**:
 
-- The **engine** (`overlay-check`) is ~300 lines of Go. It knows nothing about any
+- The **engine** (`tessera`) is ~300 lines of Go. It knows nothing about any
   domain. It loads a pack, evaluates its rules against a manifest, and signs the
   result.
 - A **pack** is pure content: a rules file (Rego), a reusable library (YAML), a
@@ -70,7 +72,7 @@ This repo ships **two packs** to prove the point:
             │  you summarize the         │  library/   (data)        │
             │  relevant facts            │  rules/     (Rego)        │
             ▼                            └────────────┬─────────────┘
-   ┌──────────────────┐    overlay-check        ┌─────▼───────────┐    ┌──────────────────┐
+   ┌──────────────────┐      tessera            ┌─────▼───────────┐    ┌──────────────────┐
    │  manifest         │ ──────────────────────▶│  rules engine    │──▶ │  signed receipt   │
    │  (a small file)   │   --pack packs/mosa     │  (OPA, embedded) │    │  pass/fail +      │
    └──────────────────┘                         └──────────────────┘    │  metrics + sig    │
@@ -89,14 +91,14 @@ overlay," made concrete.
 
 ```bash
 # build the engine (one static binary; first build downloads dependencies)
-go build -o overlay-check.exe ./cmd/overlay-check
+go build -o tessera.exe ./cmd/tessera
 
 # MOSA pack
-./overlay-check.exe --pack packs/mosa \
+./tessera.exe --pack packs/mosa \
   --manifest packs/mosa/examples/example-radio/manifest.yaml --out receipt.json
 
 # the SAME binary, a different pack — no engine code changed
-./overlay-check.exe --pack packs/cyber-rmf \
+./tessera.exe --pack packs/cyber-rmf \
   --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
 ```
 
@@ -129,11 +131,11 @@ unsparing assessment, the GAO context, and the existing-tooling landscape.
 ## What's in the box
 
 ```
-mosa-overlay/
+tessera/
 ├── README.md                       ← you are here
 ├── AUTHORS.md                      ← concept & design credit (Tony Maida) + provenance
 ├── docs/VIABILITY.md               ← honest "is this viable?" assessment — read it
-├── cmd/overlay-check/main.go       ← the engine (Go; embeds OPA; ~300 lines, domain-agnostic)
+├── cmd/tessera/main.go             ← the engine (Go; embeds OPA; ~300 lines, domain-agnostic)
 ├── rulestest/                      ← `go test` harness that runs EVERY pack's rules
 └── packs/
     ├── mosa/                       ← flagship pack

@@ -1,4 +1,4 @@
-# Pack descriptor — tells the overlay-check engine how to run this domain.
+# Pack descriptor — tells the tessera engine how to run this domain.
 pack: mosa
 title: Modular Open Systems Approach (MOSA)
 version: "0.1"

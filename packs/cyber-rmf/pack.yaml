@@ -1,5 +1,5 @@
 # Pack descriptor for the cyber / RMF DEMONSTRATION pack.
-# Purpose: prove the overlay-check engine is domain-agnostic — the same engine,
+# Purpose: prove the tessera engine is domain-agnostic — the same engine,
 # manifest+rules+signed-receipt pattern, applied to a totally different concern.
 # This is NOT a production RMF/eMASS tool. See README.md in this directory.
 pack: cyber-rmf

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jeranaias/mosa-overlay/packs/cyber-rmf/schema/manifest.schema.json",
+  "$id": "https://github.com/jeranaias/tessera/packs/cyber-rmf/schema/manifest.schema.json",
   "title": "Cyber/RMF control-coverage manifest (DEMONSTRATION)",
-  "description": "A system's self-declared control implementation status. Demonstrates the overlay-check engine on a non-MOSA domain.",
+  "description": "A system's self-declared control implementation status. Demonstrates the tessera engine on a non-MOSA domain.",
   "type": "object",
   "required": ["overlayManifestVersion", "system", "controls"],
   "additionalProperties": false,
