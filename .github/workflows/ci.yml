@@ -94,6 +94,11 @@ jobs:
           cp c.json r2.json
           ./tessera verify r1.json r2.json
 
+      - name: Render a stakeholder report from a receipt
+        run: |
+          ./tessera report r1.json --role all > report.md
+          test -s report.md && head -5 report.md
+
       - name: A tampered receipt is rejected (exit 3)
         run: |
           set +e

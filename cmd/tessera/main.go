@@ -33,6 +33,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,7 +76,7 @@ func main() {
 	cmd := "check" // default subcommand (back-compat: `tessera --pack ...`)
 	if len(args) > 0 {
 		switch args[0] {
-		case "check", "verify", "packs", "version":
+		case "check", "verify", "report", "packs", "version":
 			cmd, args = args[0], args[1:]
 		}
 	}
@@ -84,12 +85,14 @@ func main() {
 		checkCmd(args)
 	case "verify":
 		verifyCmd(args)
+	case "report":
+		reportCmd(args)
 	case "packs":
 		packsCmd(args)
 	case "version":
 		fmt.Printf("tessera %s\n", toolVersion)
 	default:
-		fail("unknown subcommand %q (want: check | verify | packs | version)", cmd)
+		fail("unknown subcommand %q (want: check | verify | report | packs | version)", cmd)
 	}
 }
 
@@ -306,9 +309,8 @@ func verifyCmd(args []string) {
 	var pinnedKey, expectedPrev string
 	fs.StringVar(&pinnedKey, "key", "", "base64 ed25519 public key to REQUIRE (pins trust; otherwise the receipt's own embedded key is used)")
 	fs.StringVar(&expectedPrev, "prev", "", "expected prevDigest, to enforce chain linkage (single-receipt mode)")
-	_ = fs.Parse(args)
-
-	rest := fs.Args()
+	flagArgs, rest := partitionFlags(args, map[string]bool{"key": true, "prev": true})
+	_ = fs.Parse(flagArgs)
 	if len(rest) == 0 {
 		fail("usage: tessera verify <receipt.json|-> [more-receipts-in-chain-order...]")
 	}
@@ -401,6 +403,143 @@ func short(s string) string {
 		return s[:12]
 	}
 	return s
+}
+
+// ---------------------------------------------------------------------------
+// report — render a role-tailored markdown summary from a signed receipt
+// ---------------------------------------------------------------------------
+
+func reportCmd(args []string) {
+	fs := flag.NewFlagSet("report", flag.ExitOnError)
+	var role, outPath string
+	fs.StringVar(&role, "role", "all", "stakeholder view: peo | pm | engineer | all")
+	fs.StringVar(&outPath, "out", "", "write markdown to this path (default: stdout)")
+	flagArgs, rest := partitionFlags(args, map[string]bool{"role": true, "out": true})
+	_ = fs.Parse(flagArgs)
+	if len(rest) != 1 {
+		fail("usage: tessera report <receipt.json|-> [--role peo|pm|engineer|all]")
+	}
+	rec, err := readReceiptFile(rest[0])
+	if err != nil {
+		fail("%v", err)
+	}
+
+	md := renderReport(rec, strings.ToLower(role))
+	if outPath != "" {
+		if err := os.WriteFile(outPath, []byte(md), 0o644); err != nil {
+			fail("writing report: %v", err)
+		}
+		fmt.Fprintf(os.Stderr, "report: %s\n", outPath)
+		return
+	}
+	fmt.Print(md)
+}
+
+func renderReport(rec *receipt, role string) string {
+	var b strings.Builder
+	rep := rec.Report
+	pass, _ := rep["pass"].(bool)
+	verdict := "FAIL"
+	if pass {
+		verdict = "PASS"
+	}
+	metrics, _ := rep["metrics"].(map[string]any)
+
+	fmt.Fprintf(&b, "# Tessera report — %s\n\n", rec.PackTitle)
+	fmt.Fprintf(&b, "- **Verdict:** %s\n- **Pack:** %s (v%s)\n- **Manifest:** %s\n- **Signed:** %s\n- **Digest:** `%s`\n\n",
+		verdict, rec.Pack, rec.PackVersion, rec.Manifest, rec.SignedAt, short(rec.Digest))
+
+	want := func(r string) bool { return role == "all" || role == r }
+
+	if want("peo") {
+		b.WriteString("## Executive (PEO)\n\n")
+		if mi, ok := metrics["mosa_index"]; ok {
+			fmt.Fprintf(&b, "Strategic alignment: **MOSA index %s / 100**, verdict **%s**.\n\n", fmtVal(mi), verdict)
+		}
+		b.WriteString(metricsTable(metrics))
+		b.WriteString("\n")
+	}
+	if want("pm") {
+		b.WriteString("## Program management — cost, risk, exceptions\n\n")
+		if v, ok := metrics["total_cost"]; ok {
+			fmt.Fprintf(&b, "- Total cost: %s\n", fmtVal(v))
+		}
+		if v, ok := metrics["cost_locked_in_non_severable"]; ok {
+			fmt.Fprintf(&b, "- **Cost locked behind non-severable modules:** %s\n", fmtVal(v))
+		}
+		if v, ok := metrics["deny_count"]; ok {
+			fmt.Fprintf(&b, "- Open blocking findings to clear: %s\n", fmtVal(v))
+		}
+		b.WriteString("\n")
+		b.WriteString(waiverTable(rep["waived"]))
+		b.WriteString("\n")
+	}
+	if want("engineer") {
+		b.WriteString("## Engineering findings\n\n")
+		b.WriteString(findingList("Blocking (deny)", rep["deny"]))
+		b.WriteString(findingList("Waived", rep["waived"]))
+		b.WriteString(findingList("Advisory (warn)", rep["warn"]))
+	}
+	return b.String()
+}
+
+func metricsTable(m map[string]any) string {
+	if len(m) == 0 {
+		return "_No metrics._\n"
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	b.WriteString("| metric | value |\n|---|---|\n")
+	for _, k := range keys {
+		fmt.Fprintf(&b, "| %s | %s |\n", k, fmtVal(m[k]))
+	}
+	return b.String()
+}
+
+// fmtVal prints JSON numbers as plain integers when whole (receipts deserialize
+// numbers as float64, which otherwise render like 1.5e+06).
+func fmtVal(v any) string {
+	if f, ok := v.(float64); ok {
+		if f == float64(int64(f)) {
+			return strconv.FormatInt(int64(f), 10)
+		}
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	return fmt.Sprintf("%v", v)
+}
+
+func waiverTable(v any) string {
+	arr, _ := v.([]any)
+	if len(arr) == 0 {
+		return "_No waivers._\n"
+	}
+	var b strings.Builder
+	b.WriteString("**Waivers:**\n\n| code | subject | approver | expires |\n|---|---|---|---|\n")
+	for _, it := range arr {
+		f, _ := it.(map[string]any)
+		fmt.Fprintf(&b, "| %v | %v | %v | %v |\n", f["code"], f["subject"], f["approver"], f["expires"])
+	}
+	return b.String()
+}
+
+func findingList(title string, v any) string {
+	arr, _ := v.([]any)
+	var b strings.Builder
+	fmt.Fprintf(&b, "### %s\n\n", title)
+	if len(arr) == 0 {
+		b.WriteString("_None._\n\n")
+		return b.String()
+	}
+	for _, it := range arr {
+		f, _ := it.(map[string]any)
+		fmt.Fprintf(&b, "- `%v` (%v): %v\n", f["code"], f["subject"], f["msg"])
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 // verifyReceipt returns a list of problems; empty means the receipt is valid.
@@ -714,4 +853,28 @@ func printFindings(label string, v any) {
 func fail(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, "error: "+format+"\n", a...)
 	os.Exit(1)
+}
+
+// partitionFlags splits args into flag tokens and positional tokens so flags may
+// appear before OR after positionals (Go's flag package stops at the first
+// positional). valueFlags names the flags that consume a following value when not
+// given in --flag=value form.
+func partitionFlags(args []string, valueFlags map[string]bool) (flags, positional []string) {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if strings.HasPrefix(a, "-") && a != "-" {
+			flags = append(flags, a)
+			name := strings.TrimLeft(a, "-")
+			if strings.ContainsRune(name, '=') {
+				continue // --flag=value
+			}
+			if valueFlags[name] && i+1 < len(args) {
+				i++
+				flags = append(flags, args[i])
+			}
+			continue
+		}
+		positional = append(positional, a)
+	}
+	return flags, positional
 }

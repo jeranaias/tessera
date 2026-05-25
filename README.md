@@ -230,6 +230,8 @@ Rough draft, but it runs and it's tested in CI. Real and working today:
 - **signed receipts** + independent **verification** (digest, Ed25519 signature, key pinning, chain linkage)
 - **signed, expiring, attributed waivers** ("to the maximum extent practicable")
 - **SARIF output** (`--sarif`) — findings surface in GitHub code scanning / IDEs
+- **stakeholder reports** (`tessera report --role peo|pm|engineer`) — role-tailored markdown from a receipt
+- **cost/risk → value** — total cost, cost locked behind non-severable modules, high-risk advisories
 - **MOSA pack** + **cyber-RMF** demonstration pack (multi-domain, content-only)
 - **SysML v2 adapter** — derive a manifest from a model (attestation → verification)
 
