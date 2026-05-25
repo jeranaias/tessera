@@ -1,0 +1,8 @@
+# Pack descriptor — tells the overlay-check engine how to run this domain.
+pack: mosa
+title: Modular Open Systems Approach (MOSA)
+version: "0.1"
+query: data.mosa.result          # Rego entrypoint the engine evaluates
+rules: rules                      # dir of .rego rules (relative to this pack)
+library: library                  # dir of *.yaml injected at data.library
+schema: schema/manifest.schema.json

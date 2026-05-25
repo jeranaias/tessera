@@ -8,10 +8,21 @@ because keeping it current is cheap.
 
 | You want to… | Edit | No code needed? |
 |---|---|---|
-| Add/retire an open standard | `library/standards.yaml` | ✅ |
-| Add a MOSA objective or severability class | `library/objectives.yaml`, `library/severability.yaml` | ✅ |
-| Add or change a conformance check | `rules/mosa.rego` (+ a test in `rules/mosa_test.rego`) | Rego only |
-| Change the manifest contract | `schema/mosa-manifest.schema.json` | JSON Schema only |
+| Add/retire an open standard (MOSA) | `packs/mosa/library/standards.yaml` | ✅ |
+| Add a MOSA objective or severability class | `packs/mosa/library/objectives.yaml`, `…/severability.yaml` | ✅ |
+| Add or change a conformance check | `packs/<pack>/rules/*.rego` (+ a test alongside) | Rego only |
+| Change a manifest contract | `packs/<pack>/schema/manifest.schema.json` | JSON Schema only |
+| **Add a whole new domain** | a new `packs/<pack>/` folder (see below) | content only |
+
+## Adding a new pack (no engine code)
+
+Copy an existing pack folder and change three things:
+
+1. `library/*.yaml` — your reference data.
+2. `rules/*.rego` — your `deny`/`warn` rules and a top-level `result` (+ tests). Use a unique package name, e.g. `package yourpack`.
+3. `pack.yaml` — set `query: data.yourpack.result` and the `rules`/`library` dirs.
+
+The `cyber-rmf` pack is a minimal worked example of exactly this.
 
 ## Rules
 
@@ -26,12 +37,13 @@ because keeping it current is cheap.
 ## Checks before you open a PR
 
 ```bash
-# rules pack unit tests
+# unit tests for EVERY pack's rules
 go test ./...
 
-# end-to-end smoke test against the worked example (expect FAIL + exit 2)
-go build -o mosa-check.exe ./cmd/mosa-check
-./mosa-check.exe --rules rules --library library --manifest examples/example-radio/manifest.yaml
+# end-to-end smoke test against the worked examples (expect FAIL + exit 2)
+go build -o overlay-check.exe ./cmd/overlay-check
+./overlay-check.exe --pack packs/mosa      --manifest packs/mosa/examples/example-radio/manifest.yaml
+./overlay-check.exe --pack packs/cyber-rmf --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
 ```
 
 ## Attribution

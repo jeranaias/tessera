@@ -1,0 +1,11 @@
+# Pack descriptor for the cyber / RMF DEMONSTRATION pack.
+# Purpose: prove the overlay-check engine is domain-agnostic — the same engine,
+# manifest+rules+signed-receipt pattern, applied to a totally different concern.
+# This is NOT a production RMF/eMASS tool. See README.md in this directory.
+pack: cyber-rmf
+title: "Cyber / RMF control coverage (DEMONSTRATION)"
+version: "0.0.1"
+query: data.rmf.result
+rules: rules
+library: library
+schema: schema/manifest.schema.json

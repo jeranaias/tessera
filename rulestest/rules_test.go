@@ -1,12 +1,12 @@
-// Runs the Rego unit tests in ../rules through OPA's tester library, so the
-// rules pack can be verified with `go test ./...` without installing the OPA CLI.
+// Runs the Rego unit tests for EVERY pack (packs/*/rules) through OPA's tester
+// library, so all packs can be verified with `go test ./...` without installing
+// the OPA CLI.
 package rulestest
 
 import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
@@ -14,34 +14,32 @@ import (
 	"github.com/open-policy-agent/opa/tester"
 )
 
-func TestRegoRules(t *testing.T) {
-	const dir = "../rules"
-	modules := map[string]*ast.Module{}
-
-	entries, err := os.ReadDir(dir)
+func TestPackRegoRules(t *testing.T) {
+	matches, err := filepath.Glob(filepath.Join("..", "packs", "*", "rules", "*.rego"))
 	if err != nil {
-		t.Fatalf("read rules dir: %v", err)
+		t.Fatalf("glob packs: %v", err)
 	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".rego") {
-			continue
-		}
-		src, err := os.ReadFile(filepath.Join(dir, e.Name()))
-		if err != nil {
-			t.Fatalf("read %s: %v", e.Name(), err)
-		}
-		m, err := ast.ParseModule(e.Name(), string(src))
-		if err != nil {
-			t.Fatalf("parse %s: %v", e.Name(), err)
-		}
-		modules[e.Name()] = m
+	if len(matches) == 0 {
+		t.Fatal("no pack rego files found under packs/*/rules")
 	}
 
-	ctx := context.Background()
+	modules := map[string]*ast.Module{}
+	for _, p := range matches {
+		src, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatalf("read %s: %v", p, err)
+		}
+		m, err := ast.ParseModule(p, string(src))
+		if err != nil {
+			t.Fatalf("parse %s: %v", p, err)
+		}
+		modules[p] = m
+	}
+
 	ch, err := tester.NewRunner().
 		SetStore(inmem.New()).
 		SetModules(modules).
-		RunTests(ctx, nil)
+		RunTests(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("run tests: %v", err)
 	}

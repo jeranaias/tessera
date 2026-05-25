@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jeranaias/mosa-overlay/packs/cyber-rmf/schema/manifest.schema.json",
+  "title": "Cyber/RMF control-coverage manifest (DEMONSTRATION)",
+  "description": "A system's self-declared control implementation status. Demonstrates the overlay-check engine on a non-MOSA domain.",
+  "type": "object",
+  "required": ["overlayManifestVersion", "system", "controls"],
+  "additionalProperties": false,
+  "properties": {
+    "overlayManifestVersion": { "type": "string", "examples": ["0.1"] },
+    "system": {
+      "type": "object",
+      "required": ["id", "name", "baseline"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "baseline": { "type": "string", "enum": ["low", "moderate", "high"] }
+      }
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "description": "Control id from library/controls.yaml." },
+          "status": {
+            "type": "string",
+            "enum": ["implemented", "planned", "not-implemented", "inherited", "not-applicable"]
+          },
+          "targetDate": { "type": "string", "description": "For planned controls (YYYY-MM-DD)." },
+          "poam": { "type": "string", "description": "POA&M reference for not-implemented controls." }
+        }
+      }
+    }
+  }
+}

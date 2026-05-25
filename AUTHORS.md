@@ -17,6 +17,16 @@ breaking it. The original design comprises:
 4. Normalization of diverse artifacts (models, cost estimates, risk registers) into common views, with stakeholder-specific value algorithms
 5. Guided workflows and fit-for-purpose dashboards per role (PEO / PM / capability owner / systems & test engineer)
 
+## Provenance note
+
+For attribution precision: the general UAF **"Domain Overlay" construct** has prior
+public authorship — see Shearin & Wise (Georgia Tech Research Institute), OMG,
+March 2023, *"How I Stumbled Across A Domain Overlay and Why It's Actually Useful"*
+([OMG PDF](https://www.omg.org/uaf/resources/march-2023/How-I-Stumbled-Across-A-Domain-Overlay-and-Why-It-Actually-Useful-Shearin-Wise-Georgia-Tech-Research-Institute.pdf)).
+The cleanest framing is therefore: **the MOSA Domain Overlay design is Tony
+Maida's, building on the UAF domain-overlay construct.** If you have a precise
+citation for Tony's MOSA-specific work, please open a PR to add it here.
+
 ## This implementation
 
 This repository is an **independent open-source (Apache-2.0) implementation** of

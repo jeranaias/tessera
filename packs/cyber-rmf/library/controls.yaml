@@ -1,0 +1,25 @@
+# Illustrative subset of NIST SP 800-53 Rev. 5 security controls, with the
+# baselines each applies to. This is a DEMONSTRATION subset (5 controls), not the
+# full catalog. A real pack would import the OSCAL catalog/baselines.
+version: "0.1"
+controls:
+  - id: AC-2
+    name: Account Management
+    family: AC
+    baseline: [low, moderate, high]
+  - id: AU-2
+    name: Event Logging
+    family: AU
+    baseline: [low, moderate, high]
+  - id: IA-2
+    name: Identification and Authentication (Organizational Users)
+    family: IA
+    baseline: [low, moderate, high]
+  - id: SC-7
+    name: Boundary Protection
+    family: SC
+    baseline: [moderate, high]
+  - id: SI-2
+    name: Flaw Remediation
+    family: SI
+    baseline: [low, moderate, high]

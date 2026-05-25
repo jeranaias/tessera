@@ -1,12 +1,15 @@
-# Built binary
-mosa-check
-mosa-check.exe
+# Built binaries — anchored to repo root so they never match cmd/<name>/ SOURCE dirs
+/overlay-check
+/overlay-check.exe
+/mosa-check
+/mosa-check.exe
+*.exe
 
 # Signing keys — NEVER commit private keys
 *.key
 *.key.pub
-mosa-ed25519.key
-mosa-ed25519.key.pub
+*-ed25519.key
+*-ed25519.key.pub
 
 # Generated receipts / chains
 receipt.json

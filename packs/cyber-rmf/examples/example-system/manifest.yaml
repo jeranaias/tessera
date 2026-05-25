@@ -1,0 +1,20 @@
+# Worked control-coverage manifest for an illustrative moderate-baseline system.
+# Deliberately seeded with one gate-failing issue and one advisory issue.
+overlayManifestVersion: "0.1"
+
+system:
+  id: SYS-EXAMPLE-1
+  name: Example Moderate System
+  baseline: moderate
+
+controls:
+  - id: AC-2
+    status: implemented
+  - id: AU-2
+    status: planned          # -> WARN: planned with no target date
+  - id: IA-2
+    status: implemented
+  - id: SC-7
+    status: not-implemented  # -> DENY: not-implemented in baseline, no POA&M
+  - id: SI-2
+    status: inherited
