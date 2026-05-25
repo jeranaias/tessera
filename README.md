@@ -217,12 +217,19 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Status / honest scope
 
-Rough draft, but it runs. Real and tested (`go test ./...` passes; both packs
-produce signed receipts): the engine, the MOSA pack, and the cyber-RMF
-demonstration pack. **Deferred** (and load-bearing for real credibility):
-model-import adapters that *derive* manifests, signed justified-waivers, and
-dashboards. The cyber-RMF pack is explicitly a demonstration, not a production
-RMF tool.
+Rough draft, but it runs and it's tested in CI. Real and working today:
+
+- **engine** (`check` + `verify`), embedding OPA; one static binary
+- **manifest schema validation** — malformed manifests are rejected with precise errors
+- **signed receipts** + independent **verification** (digest, Ed25519 signature, key pinning, chain linkage)
+- **signed, expiring, attributed waivers** ("to the maximum extent practicable")
+- **MOSA pack** + **cyber-RMF** demonstration pack (multi-domain, content-only)
+- **SysML v2 adapter** — derive a manifest from a model (attestation → verification)
+
+**Deferred** (and named honestly in [`docs/VIABILITY.md`](docs/VIABILITY.md)):
+deriving objectives/requirements in the adapter, UAF/SysML 1.x XMI + Capella
+adapters, dashboards, and an optional cost-benefit module. The cyber-RMF pack is
+a demonstration, not a production RMF tool.
 
 ## License
 

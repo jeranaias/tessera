@@ -4,6 +4,7 @@ go 1.22
 
 require (
 	github.com/open-policy-agent/opa v0.70.0
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	sigs.k8s.io/yaml v1.4.0
 )
 

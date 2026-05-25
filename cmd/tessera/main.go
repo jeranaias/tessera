@@ -37,6 +37,7 @@ import (
 
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/storage/inmem"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"sigs.k8s.io/yaml"
 )
 
@@ -96,6 +97,8 @@ func checkCmd(args []string) {
 	fs.StringVar(&waiversPath, "waivers", "", "optional waivers file (yaml/json) injected at data.waivers")
 	fs.StringVar(&outPath, "out", "", "path to write the signed receipt (optional)")
 	fs.StringVar(&keyPath, "key", "tessera-ed25519.key", "ed25519 private key file (generated if absent)")
+	var noSchema bool
+	fs.BoolVar(&noSchema, "no-schema", false, "skip manifest JSON Schema validation")
 	_ = fs.Parse(args)
 
 	if packDir == "" || manifestPath == "" {
@@ -117,6 +120,17 @@ func checkCmd(args []string) {
 	if manifestPath != "-" {
 		manifestName = filepath.Base(manifestPath)
 	}
+
+	// Validate the manifest against the pack's JSON Schema (fail loudly on garbage).
+	if !noSchema && pack.Schema != "" {
+		schemaPath := filepath.Join(packDir, pack.Schema)
+		if _, statErr := os.Stat(schemaPath); statErr == nil {
+			if verr := validateManifest(schemaPath, input); verr != nil {
+				fail("manifest does not satisfy %s:\n%v", pack.Schema, verr)
+			}
+		}
+	}
+
 	lib, err := mergeLibrary(libDir)
 	if err != nil {
 		fail("loading library: %v", err)
@@ -298,6 +312,25 @@ func canonicalJSON(v any) ([]byte, error) {
 // ---------------------------------------------------------------------------
 // pack + evaluation
 // ---------------------------------------------------------------------------
+
+// validateManifest checks the decoded manifest against the pack's JSON Schema.
+func validateManifest(schemaPath string, input map[string]any) error {
+	f, err := os.Open(schemaPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource("manifest.schema.json", f); err != nil {
+		return err
+	}
+	sch, err := c.Compile("manifest.schema.json")
+	if err != nil {
+		return err
+	}
+	return sch.Validate(input)
+}
 
 func loadPack(dir string) (*packDescriptor, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "pack.yaml"))

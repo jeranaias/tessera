@@ -73,3 +73,11 @@ jobs:
           ./tessera verify faked.json
           code=$?
           test "$code" -eq 3 || { echo "expected exit 3 for tampered receipt, got $code"; exit 1; }
+
+      - name: A malformed manifest is rejected by schema validation (exit 1)
+        run: |
+          set +e
+          printf 'mosaManifestVersion: "0.1"\nprogram: {id: P, name: "N"}\nmodules:\n  - {id: M1}\ninterfaces: []\n' > bad.yaml
+          ./tessera check --pack packs/mosa --manifest bad.yaml
+          code=$?
+          test "$code" -eq 1 || { echo "expected exit 1 for malformed manifest, got $code"; exit 1; }

@@ -1,8 +1,9 @@
 # Cyber / RMF control-coverage rules (DEMONSTRATION).
 #
 # Same shape as the MOSA pack on purpose: input = manifest, data.library = the
-# control catalog, output = data.rmf.result {pass, deny, warn, metrics}. This is
-# what "domain-agnostic engine" means — only the content differs.
+# control catalog, data.waivers = active waivers, output = data.rmf.result
+# { pass, deny, waived, warn, metrics }. This is what "domain-agnostic engine"
+# means — only the content differs.
 #
 # NOT a production RMF tool. A real pack would use OSCAL catalogs/profiles and a
 # far richer control/assessment model. See ../README.md.
@@ -11,16 +12,19 @@ package rmf
 
 import rego.v1
 
+controls_in := object.get(input, "controls", [])
+
+baseline := object.get(object.get(input, "system", {}), "baseline", "")
+
 known_control(id) if {
 	some c in data.library.controls
 	c.id == id
 }
 
-# Controls that apply to this system's baseline.
 baseline_controls contains c if {
 	some c in data.library.controls
 	some b in c.baseline
-	b == input.system.baseline
+	b == baseline
 }
 
 baseline_ids contains id if {
@@ -29,19 +33,18 @@ baseline_ids contains id if {
 }
 
 addressed(id) if {
-	some ctl in input.controls
+	some ctl in controls_in
 	ctl.id == id
 }
 
 valid_status := {"implemented", "planned", "not-implemented", "inherited", "not-applicable"}
 
 # ---------------------------------------------------------------------------
-# DENY (gate-failing)
+# RAW violations (before waivers)
 # ---------------------------------------------------------------------------
 
-# A claimed control must exist in the catalog.
-deny contains f if {
-	some ctl in input.controls
+raw_deny contains f if {
+	some ctl in controls_in
 	not known_control(ctl.id)
 	f := {
 		"code": "UNKNOWN_CONTROL",
@@ -51,9 +54,8 @@ deny contains f if {
 	}
 }
 
-# Status must be a recognized value.
-deny contains f if {
-	some ctl in input.controls
+raw_deny contains f if {
+	some ctl in controls_in
 	not valid_status[ctl.status]
 	f := {
 		"code": "BAD_STATUS",
@@ -63,8 +65,7 @@ deny contains f if {
 	}
 }
 
-# Every control in the system's baseline must be addressed in the manifest.
-deny contains f if {
+raw_deny contains f if {
 	some id in baseline_ids
 	not addressed(id)
 	f := {
@@ -75,9 +76,8 @@ deny contains f if {
 	}
 }
 
-# A baseline control that is not-implemented must carry a POA&M.
-deny contains f if {
-	some ctl in input.controls
+raw_deny contains f if {
+	some ctl in controls_in
 	baseline_ids[ctl.id]
 	ctl.status == "not-implemented"
 	not ctl.poam
@@ -90,11 +90,47 @@ deny contains f if {
 }
 
 # ---------------------------------------------------------------------------
+# Waivers (same pattern as the MOSA pack)
+# ---------------------------------------------------------------------------
+
+waiver_matches_subject(w, f) if w.subject == f.subject
+
+waiver_matches_subject(w, f) if w.subject == "*"
+
+is_waived(f) if {
+	some w in data.waivers
+	w.code == f.code
+	waiver_matches_subject(w, f)
+}
+
+deny contains f if {
+	some f in raw_deny
+	not is_waived(f)
+}
+
+waived contains wf if {
+	some f in raw_deny
+	some w in data.waivers
+	w.code == f.code
+	waiver_matches_subject(w, f)
+	wf := {
+		"code": f.code,
+		"subject": f.subject,
+		"severity": f.severity,
+		"msg": f.msg,
+		"waived": true,
+		"approver": object.get(w, "approver", ""),
+		"justification": object.get(w, "justification", ""),
+		"expires": object.get(w, "expires", ""),
+	}
+}
+
+# ---------------------------------------------------------------------------
 # WARN (advisory)
 # ---------------------------------------------------------------------------
 
 warn contains f if {
-	some ctl in input.controls
+	some ctl in controls_in
 	ctl.status == "planned"
 	not ctl.targetDate
 	f := {
@@ -110,7 +146,7 @@ warn contains f if {
 # ---------------------------------------------------------------------------
 
 satisfied contains id if {
-	some ctl in input.controls
+	some ctl in controls_in
 	baseline_ids[ctl.id]
 	ctl.status in {"implemented", "inherited", "not-applicable"}
 	id := ctl.id
@@ -123,10 +159,11 @@ implemented_pct := round((100 * count(satisfied)) / count(baseline_ids)) if {
 implemented_pct := 0 if count(baseline_ids) == 0
 
 metrics := {
-	"baseline": input.system.baseline,
+	"baseline": baseline,
 	"baseline_controls": count(baseline_ids),
 	"implemented_pct": implemented_pct,
 	"deny_count": count(deny),
+	"waived_count": count(waived),
 	"warn_count": count(warn),
 }
 
@@ -141,6 +178,7 @@ pass if count(deny) == 0
 result := {
 	"pass": pass,
 	"deny": deny,
+	"waived": waived,
 	"warn": warn,
 	"metrics": metrics,
 }
