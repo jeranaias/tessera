@@ -18,3 +18,7 @@ receipt.json
 /vendor/
 *.test
 *.out
+
+# Python
+__pycache__/
+*.pyc
