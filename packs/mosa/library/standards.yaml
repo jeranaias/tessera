@@ -69,6 +69,36 @@ standards:
     domain: middleware
     open: true
 
+  - id: OpenVPX-VITA-65
+    name: OpenVPX (VITA 65) system architecture
+    steward: VITA Standards Organization
+    domain: hardware-backplane
+    open: true
+
+  - id: VITA-46-VPX
+    name: VPX (VITA 46) base specification
+    steward: VITA Standards Organization
+    domain: hardware-backplane
+    open: true
+
+  - id: ARINC-653
+    name: ARINC 653 avionics application software standard interface
+    steward: ARINC / AEEC
+    domain: avionics-rtos
+    open: true
+
+  - id: OMG-DDS-Security-1.1
+    name: OMG DDS Security 1.1
+    steward: Object Management Group
+    domain: middleware-security
+    open: true
+
+  - id: TTEthernet-SAE-AS6802
+    name: Time-Triggered Ethernet (SAE AS6802)
+    steward: SAE International
+    domain: deterministic-networking
+    open: true
+
   # Example of a NON-open entry, kept so rules can flag it. A key interface
   # claiming conformance to this should FAIL the open-standards rule.
   - id: VENDOR-PROPRIETARY-BUS

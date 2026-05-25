@@ -163,6 +163,7 @@ signature nobody can verify is theater:
 ```bash
 ./tessera.exe verify receipt.json                 # digest + signature + report verdict
 ./tessera.exe verify receipt.json --key <pubkey>  # REQUIRE a specific signer (pin trust)
+./tessera.exe verify r1.json r2.json r3.json      # verify a CHAIN links cleanly over time
 ```
 
 `verify` recomputes the report's digest, checks the Ed25519 signature, and (with

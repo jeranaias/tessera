@@ -305,50 +305,102 @@ func verifyCmd(args []string) {
 	fs := flag.NewFlagSet("verify", flag.ExitOnError)
 	var pinnedKey, expectedPrev string
 	fs.StringVar(&pinnedKey, "key", "", "base64 ed25519 public key to REQUIRE (pins trust; otherwise the receipt's own embedded key is used)")
-	fs.StringVar(&expectedPrev, "prev", "", "expected prevDigest, to enforce chain linkage")
+	fs.StringVar(&expectedPrev, "prev", "", "expected prevDigest, to enforce chain linkage (single-receipt mode)")
 	_ = fs.Parse(args)
 
 	rest := fs.Args()
-	if len(rest) != 1 {
-		fail("usage: tessera verify <receipt.json|->")
+	if len(rest) == 0 {
+		fail("usage: tessera verify <receipt.json|-> [more-receipts-in-chain-order...]")
 	}
 
-	var b []byte
-	var err error
-	if rest[0] == "-" {
-		b, err = io.ReadAll(os.Stdin)
-	} else {
-		b, err = os.ReadFile(rest[0])
-	}
-	if err != nil {
-		fail("reading receipt: %v", err)
-	}
-
-	var rec receipt
-	if err := json.Unmarshal(b, &rec); err != nil {
-		fail("parsing receipt: %v", err)
-	}
-
-	problems := verifyReceipt(&rec, pinnedKey, expectedPrev)
-	if len(problems) == 0 {
-		reportState := "FAIL"
-		if p, _ := rec.Report["pass"].(bool); p {
-			reportState = "PASS"
+	// Single receipt.
+	if len(rest) == 1 {
+		rec, err := readReceiptFile(rest[0])
+		if err != nil {
+			fail("%v", err)
 		}
-		keyNote := "self-embedded key"
-		if pinnedKey != "" {
-			keyNote = "pinned key"
+		problems := verifyReceipt(rec, pinnedKey, expectedPrev)
+		printVerify(rec, problems, pinnedKey)
+		if len(problems) > 0 {
+			os.Exit(3)
 		}
-		fmt.Fprintf(os.Stderr, "receipt VALID  pack=%s manifest=%q signed=%s (%s)\n",
-			rec.Pack, rec.Manifest, rec.SignedAt, keyNote)
-		fmt.Fprintf(os.Stderr, "  digest %s\n  underlying report: %s\n", rec.Digest, reportState)
 		return
 	}
-	fmt.Fprintln(os.Stderr, "receipt INVALID:")
-	for _, p := range problems {
-		fmt.Fprintf(os.Stderr, "  - %s\n", p)
+
+	// Chain: receipts given in order; each must link to the previous via prevDigest.
+	allOK := true
+	prevDigest := ""
+	for i, path := range rest {
+		rec, err := readReceiptFile(path)
+		if err != nil {
+			fail("%v", err)
+		}
+		problems := verifyReceipt(rec, pinnedKey, "")
+		if i > 0 && rec.PrevDigest != prevDigest {
+			problems = append(problems, fmt.Sprintf("chain break: prevDigest %q != previous receipt digest %q", rec.PrevDigest, prevDigest))
+		}
+		label := fmt.Sprintf("[%d/%d] %s", i+1, len(rest), filepath.Base(path))
+		if len(problems) == 0 {
+			fmt.Fprintf(os.Stderr, "%s VALID (digest %s)\n", label, short(rec.Digest))
+		} else {
+			allOK = false
+			fmt.Fprintf(os.Stderr, "%s INVALID:\n", label)
+			for _, p := range problems {
+				fmt.Fprintf(os.Stderr, "    - %s\n", p)
+			}
+		}
+		prevDigest = rec.Digest
 	}
-	os.Exit(3)
+	if !allOK {
+		os.Exit(3)
+	}
+	fmt.Fprintf(os.Stderr, "chain VALID: %d receipts link cleanly\n", len(rest))
+}
+
+func readReceiptFile(path string) (*receipt, error) {
+	var b []byte
+	var err error
+	if path == "-" {
+		b, err = io.ReadAll(os.Stdin)
+	} else {
+		b, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading receipt %s: %w", path, err)
+	}
+	var rec receipt
+	if err := json.Unmarshal(b, &rec); err != nil {
+		return nil, fmt.Errorf("parsing receipt %s: %w", path, err)
+	}
+	return &rec, nil
+}
+
+func printVerify(rec *receipt, problems []string, pinnedKey string) {
+	if len(problems) > 0 {
+		fmt.Fprintln(os.Stderr, "receipt INVALID:")
+		for _, p := range problems {
+			fmt.Fprintf(os.Stderr, "  - %s\n", p)
+		}
+		return
+	}
+	reportState := "FAIL"
+	if p, _ := rec.Report["pass"].(bool); p {
+		reportState = "PASS"
+	}
+	keyNote := "self-embedded key"
+	if pinnedKey != "" {
+		keyNote = "pinned key"
+	}
+	fmt.Fprintf(os.Stderr, "receipt VALID  pack=%s manifest=%q signed=%s (%s)\n",
+		rec.Pack, rec.Manifest, rec.SignedAt, keyNote)
+	fmt.Fprintf(os.Stderr, "  digest %s\n  underlying report: %s\n", rec.Digest, reportState)
+}
+
+func short(s string) string {
+	if len(s) > 12 {
+		return s[:12]
+	}
+	return s
 }
 
 // verifyReceipt returns a list of problems; empty means the receipt is valid.

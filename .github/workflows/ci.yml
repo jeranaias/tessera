@@ -86,6 +86,14 @@ jobs:
             --manifest packs/mosa/examples/example-radio/manifest.yaml \
             --waivers packs/mosa/examples/example-radio/waivers.yaml
 
+      - name: Receipt chain links and verifies end-to-end
+        run: |
+          ./tessera check --pack packs/mosa --manifest packs/mosa/examples/example-radio/manifest.yaml --out c.json || true
+          cp c.json r1.json
+          ./tessera check --pack packs/mosa --manifest packs/mosa/examples/example-radio-clean/manifest.yaml --out c.json
+          cp c.json r2.json
+          ./tessera verify r1.json r2.json
+
       - name: A tampered receipt is rejected (exit 3)
         run: |
           set +e

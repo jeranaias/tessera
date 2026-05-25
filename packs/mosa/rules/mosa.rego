@@ -199,6 +199,19 @@ warn contains f if {
 	}
 }
 
+# Pillar 3: interfaces exist but none are designated key — likely an incomplete
+# "designate key interfaces" step.
+warn contains f if {
+	count(ifaces_in) > 0
+	n_key == 0
+	f := {
+		"code": "NO_KEY_INTERFACES_DESIGNATED",
+		"severity": "low",
+		"subject": "(program)",
+		"msg": "interfaces exist but none are designated key (MOSA pillar 3)",
+	}
+}
+
 # ---------------------------------------------------------------------------
 # Metrics & composite MOSA index
 # ---------------------------------------------------------------------------
