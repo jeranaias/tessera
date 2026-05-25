@@ -1,26 +1,22 @@
-// Command tessera is a domain-agnostic conformance engine. It evaluates a
-// manifest against a "pack" — a self-contained bundle of a rules pack (Rego) and
-// a reusable library — and emits an Ed25519-signed, hash-chained receipt.
+// Command tessera is a domain-agnostic conformance engine with two subcommands:
 //
-//	tessera --pack packs/mosa --manifest m.yaml --out receipt.json
+//	tessera check  --pack packs/mosa --manifest m.yaml [--out receipt.json]
+//	tessera verify receipt.json [--key <trusted-pubkey-b64>] [--prev <digest>]
 //
-// The engine knows nothing about any specific domain. MOSA is just the first
-// pack; cyber/RMF is a second. A pack is described by a pack.yaml:
+// `check` evaluates a manifest against a pack (rules + library) and emits an
+// Ed25519-signed, hash-chained receipt. `verify` independently checks that a
+// receipt's report matches its signed digest, the signature verifies, and
+// (optionally) that it was signed by a pinned key and links to a prior receipt.
+// If no subcommand is given, `check` is assumed (back-compat).
 //
-//	pack:    mosa
-//	title:   Modular Open Systems Approach (MOSA)
-//	version: "0.1"
-//	query:   data.mosa.result   # the Rego entrypoint to evaluate
-//	rules:   rules              # dir of .rego (relative to the pack)
-//	library: library            # dir of *.yaml injected at data.library
-//	schema:  schema/manifest.schema.json
+// A pack is described by a pack.yaml (pack/title/version/query/rules/library).
 //
-// Exit codes: 0 = pass, 2 = deny (gate fails), 1 = error.
+// Exit codes: 0 = ok/pass, 2 = deny (check gate fails), 3 = invalid receipt
+// (verify), 1 = error.
 //
-// LIMITATION (read docs/VIABILITY.md): the manifest is self-declared. A receipt
-// attests that "the program ASSERTED X and X passes the rules" — not that the
-// assertion matches the real system. Deriving manifests from real models/builds
-// (the adapter roadmap) is what turns attestation into verification.
+// LIMITATION (read docs/VIABILITY.md): a hand-written manifest is self-declared,
+// so a receipt attests a CLAIM. Deriving manifests from real models (see
+// adapters/) is what turns attestation into verification.
 package main
 
 import (
@@ -44,7 +40,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const toolVersion = "0.2.0-rough"
+const toolVersion = "0.3.0-rough"
 
 // packDescriptor is the pack.yaml contract.
 type packDescriptor struct {
@@ -73,15 +69,37 @@ type receipt struct {
 }
 
 func main() {
-	var packDir, manifestPath, outPath, keyPath string
-	flag.StringVar(&packDir, "pack", "", "path to a pack directory (containing pack.yaml)")
-	flag.StringVar(&manifestPath, "manifest", "", "path to the manifest to check (yaml/json), or - for stdin")
-	flag.StringVar(&outPath, "out", "", "path to write the signed receipt (optional)")
-	flag.StringVar(&keyPath, "key", "tessera-ed25519.key", "ed25519 private key file (generated if absent)")
-	flag.Parse()
+	args := os.Args[1:]
+	cmd := "check"
+	if len(args) > 0 && (args[0] == "check" || args[0] == "verify") {
+		cmd, args = args[0], args[1:]
+	}
+	switch cmd {
+	case "check":
+		checkCmd(args)
+	case "verify":
+		verifyCmd(args)
+	default:
+		fail("unknown subcommand %q (want: check | verify)", cmd)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// check
+// ---------------------------------------------------------------------------
+
+func checkCmd(args []string) {
+	fs := flag.NewFlagSet("check", flag.ExitOnError)
+	var packDir, manifestPath, outPath, keyPath, waiversPath string
+	fs.StringVar(&packDir, "pack", "", "path to a pack directory (containing pack.yaml)")
+	fs.StringVar(&manifestPath, "manifest", "", "path to the manifest to check (yaml/json), or - for stdin")
+	fs.StringVar(&waiversPath, "waivers", "", "optional waivers file (yaml/json) injected at data.waivers")
+	fs.StringVar(&outPath, "out", "", "path to write the signed receipt (optional)")
+	fs.StringVar(&keyPath, "key", "tessera-ed25519.key", "ed25519 private key file (generated if absent)")
+	_ = fs.Parse(args)
 
 	if packDir == "" || manifestPath == "" {
-		fail("--pack and --manifest are required")
+		fail("check: --pack and --manifest are required")
 	}
 
 	pack, err := loadPack(packDir)
@@ -104,21 +122,21 @@ func main() {
 		fail("loading library: %v", err)
 	}
 
-	report, err := evaluate(context.Background(), rulesDir, pack.Query, lib, input)
+	// Active (non-expired) waivers, injected at data.waivers for the rules.
+	activeWaivers, err := loadActiveWaivers(waiversPath)
+	if err != nil {
+		fail("loading waivers: %v", err)
+	}
+
+	report, err := evaluate(context.Background(), rulesDir, pack.Query, lib, activeWaivers, input)
 	if err != nil {
 		fail("evaluating rules: %v", err)
 	}
 
-	// Build the signed receipt over a canonical (sorted-key) report.
-	canonical, _ := json.Marshal(report)
-	sum := sha256.Sum256(canonical)
-	digest := hex.EncodeToString(sum[:])
-
-	priv, err := loadOrCreateKey(keyPath)
+	digest, sig, priv, err := signReport(report, keyPath)
 	if err != nil {
-		fail("key: %v", err)
+		fail("signing: %v", err)
 	}
-	sig := ed25519.Sign(priv, sum[:])
 
 	rec := receipt{
 		Tool:        "tessera",
@@ -155,6 +173,132 @@ func main() {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// verify
+// ---------------------------------------------------------------------------
+
+func verifyCmd(args []string) {
+	fs := flag.NewFlagSet("verify", flag.ExitOnError)
+	var pinnedKey, expectedPrev string
+	fs.StringVar(&pinnedKey, "key", "", "base64 ed25519 public key to REQUIRE (pins trust; otherwise the receipt's own embedded key is used)")
+	fs.StringVar(&expectedPrev, "prev", "", "expected prevDigest, to enforce chain linkage")
+	_ = fs.Parse(args)
+
+	rest := fs.Args()
+	if len(rest) != 1 {
+		fail("usage: tessera verify <receipt.json|->")
+	}
+
+	var b []byte
+	var err error
+	if rest[0] == "-" {
+		b, err = io.ReadAll(os.Stdin)
+	} else {
+		b, err = os.ReadFile(rest[0])
+	}
+	if err != nil {
+		fail("reading receipt: %v", err)
+	}
+
+	var rec receipt
+	if err := json.Unmarshal(b, &rec); err != nil {
+		fail("parsing receipt: %v", err)
+	}
+
+	problems := verifyReceipt(&rec, pinnedKey, expectedPrev)
+	if len(problems) == 0 {
+		reportState := "FAIL"
+		if p, _ := rec.Report["pass"].(bool); p {
+			reportState = "PASS"
+		}
+		keyNote := "self-embedded key"
+		if pinnedKey != "" {
+			keyNote = "pinned key"
+		}
+		fmt.Fprintf(os.Stderr, "receipt VALID  pack=%s manifest=%q signed=%s (%s)\n",
+			rec.Pack, rec.Manifest, rec.SignedAt, keyNote)
+		fmt.Fprintf(os.Stderr, "  digest %s\n  underlying report: %s\n", rec.Digest, reportState)
+		return
+	}
+	fmt.Fprintln(os.Stderr, "receipt INVALID:")
+	for _, p := range problems {
+		fmt.Fprintf(os.Stderr, "  - %s\n", p)
+	}
+	os.Exit(3)
+}
+
+// verifyReceipt returns a list of problems; empty means the receipt is valid.
+func verifyReceipt(rec *receipt, pinnedKeyB64, expectedPrev string) []string {
+	var problems []string
+
+	canonical, err := canonicalJSON(rec.Report)
+	if err != nil {
+		return []string{fmt.Sprintf("cannot canonicalize report: %v", err)}
+	}
+	sum := sha256.Sum256(canonical)
+	if hex.EncodeToString(sum[:]) != rec.Digest {
+		problems = append(problems, "digest mismatch: report does not match the signed digest (report was altered)")
+	}
+
+	pub, err := base64.StdEncoding.DecodeString(rec.PublicKey)
+	if err != nil || len(pub) != ed25519.PublicKeySize {
+		return append(problems, "invalid or missing public key")
+	}
+	sig, err := base64.StdEncoding.DecodeString(rec.Signature)
+	if err != nil {
+		return append(problems, "invalid signature encoding")
+	}
+	if !ed25519.Verify(ed25519.PublicKey(pub), sum[:], sig) {
+		problems = append(problems, "signature does not verify against the embedded public key")
+	}
+	if pinnedKeyB64 != "" && pinnedKeyB64 != rec.PublicKey {
+		problems = append(problems, "public key does not match the pinned --key (untrusted signer)")
+	}
+	if expectedPrev != "" && expectedPrev != rec.PrevDigest {
+		problems = append(problems, fmt.Sprintf("prevDigest %q does not match expected --prev %q (broken chain)", rec.PrevDigest, expectedPrev))
+	}
+	return problems
+}
+
+// ---------------------------------------------------------------------------
+// signing
+// ---------------------------------------------------------------------------
+
+// signReport canonicalizes the report, signs the SHA-256 of it, and returns the
+// hex digest, signature bytes, and the private key used.
+func signReport(report map[string]any, keyPath string) (string, []byte, ed25519.PrivateKey, error) {
+	canonical, err := canonicalJSON(report)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	sum := sha256.Sum256(canonical)
+	priv, err := loadOrCreateKey(keyPath)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	sig := ed25519.Sign(priv, sum[:])
+	return hex.EncodeToString(sum[:]), sig, priv, nil
+}
+
+// canonicalJSON produces deterministic bytes (sorted keys, normalized number
+// types) so that signing and verification agree regardless of how the report was
+// constructed (OPA values vs. parsed-from-JSON values).
+func canonicalJSON(v any) ([]byte, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var norm any
+	if err := json.Unmarshal(b, &norm); err != nil {
+		return nil, err
+	}
+	return json.Marshal(norm)
+}
+
+// ---------------------------------------------------------------------------
+// pack + evaluation
+// ---------------------------------------------------------------------------
+
 func loadPack(dir string) (*packDescriptor, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "pack.yaml"))
 	if err != nil {
@@ -176,11 +320,12 @@ func loadPack(dir string) (*packDescriptor, error) {
 	return &p, nil
 }
 
-// evaluate compiles the pack's rules with its library injected at data.library
-// and the manifest as input, returning the pack's query result. Rules are loaded
-// as modules (not via rego.Load) so the injected store stays read-only at eval.
-func evaluate(ctx context.Context, rulesDir, query string, lib, input map[string]any) (map[string]any, error) {
-	store := inmem.NewFromObject(map[string]any{"library": lib})
+// evaluate compiles the pack's rules with its library at data.library, active
+// waivers at data.waivers, and the manifest as input, returning the pack's query
+// result. Rules are loaded as modules (not via rego.Load) so the injected store
+// stays read-only at eval.
+func evaluate(ctx context.Context, rulesDir, query string, lib, waivers, input map[string]any) (map[string]any, error) {
+	store := inmem.NewFromObject(map[string]any{"library": lib, "waivers": waivers["waivers"]})
 	opts := []func(*rego.Rego){
 		rego.Query(query),
 		rego.Store(store),
@@ -215,6 +360,10 @@ func evaluate(ctx context.Context, rulesDir, query string, lib, input map[string
 	return out, nil
 }
 
+// ---------------------------------------------------------------------------
+// loaders
+// ---------------------------------------------------------------------------
+
 // mergeLibrary reads every *.yaml in dir and merges top-level keys into one map.
 func mergeLibrary(dir string) (map[string]any, error) {
 	merged := map[string]any{}
@@ -237,18 +386,33 @@ func mergeLibrary(dir string) (map[string]any, error) {
 	return merged, nil
 }
 
-func loadYAMLMap(path string) (map[string]any, error) {
-	b, err := os.ReadFile(path)
+// loadActiveWaivers loads a waivers file and drops any whose `expires` date
+// (YYYY-MM-DD) is in the past, so the rules only ever see *active* waivers.
+// Returns {"waivers": [...]} (possibly empty).
+func loadActiveWaivers(path string) (map[string]any, error) {
+	if path == "" {
+		return map[string]any{"waivers": []any{}}, nil
+	}
+	m, err := loadYAMLMap(path)
 	if err != nil {
 		return nil, err
 	}
-	return unmarshalYAMLMap(b)
+	raw, _ := m["waivers"].([]any)
+	today := time.Now().UTC().Format("2006-01-02")
+	active := make([]any, 0, len(raw))
+	for _, w := range raw {
+		wm, ok := w.(map[string]any)
+		if !ok {
+			continue
+		}
+		if exp, ok := wm["expires"].(string); ok && exp != "" && exp < today {
+			continue // expired (string compare is valid for ISO YYYY-MM-DD)
+		}
+		active = append(active, wm)
+	}
+	return map[string]any{"waivers": active}, nil
 }
 
-// loadManifest reads the manifest from a file, or from stdin when path is "-".
-// This lets an adapter pipe a derived manifest straight in:
-//
-//	python sysml2bom.py model.sysml | tessera --pack packs/mosa --manifest -
 func loadManifest(path string) (map[string]any, error) {
 	if path == "-" {
 		b, err := io.ReadAll(os.Stdin)
@@ -258,6 +422,14 @@ func loadManifest(path string) (map[string]any, error) {
 		return unmarshalYAMLMap(b)
 	}
 	return loadYAMLMap(path)
+}
+
+func loadYAMLMap(path string) (map[string]any, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return unmarshalYAMLMap(b)
 }
 
 func unmarshalYAMLMap(b []byte) (map[string]any, error) {
@@ -289,6 +461,10 @@ func loadOrCreateKey(path string) (ed25519.PrivateKey, error) {
 	fmt.Fprintf(os.Stderr, "generated signing key: %s (.pub alongside)\n", path)
 	return priv, nil
 }
+
+// ---------------------------------------------------------------------------
+// receipt chain + output
+// ---------------------------------------------------------------------------
 
 func chainPath(out string) string { return out + ".chain" }
 
@@ -325,6 +501,7 @@ func printSummary(pack *packDescriptor, report map[string]any) {
 		fmt.Fprintf(os.Stderr, "  metrics: %s\n", strings.Join(parts, " "))
 	}
 	printFindings("DENY", report["deny"])
+	printFindings("WAIVED", report["waived"])
 	printFindings("WARN", report["warn"])
 }
 

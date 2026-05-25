@@ -3,14 +3,18 @@
 # Input  (`input`)        : a MOSA-BOM manifest (see schema/manifest.schema.json)
 # Data   (`data.library`) : merged content of library/*.yaml (standards, objectives,
 #                           severability_classes)
+# Data   (`data.waivers`) : active (non-expired) waivers, injected by the engine
+#                           (see --waivers). Each: {code, subject|"*", justification,
+#                           approver, expires}.
 #
-# Output (`data.mosa.result`): { pass, deny[], warn[], metrics{} }
-#   deny  -> gate-failing violations (CI exit 2)
-#   warn  -> advisory findings (do not fail the gate)
+# Output (`data.mosa.result`): { pass, deny[], waived[], warn[], metrics{} }
+#   raw violations -> if covered by an active waiver, move to `waived` (recorded
+#   with approver/justification, but DO NOT fail the gate); otherwise `deny`.
+#   This is how MOSA's "to the maximum extent practicable" is honored: exceptions
+#   are allowed, but only when justified, attributed, and time-bounded.
 #
 # Optional manifest sections (requirements, objectives) are normalized with
-# object.get defaults so a manifest that omits them — e.g. one DERIVED from a
-# model by an adapter — still evaluates to a complete result.
+# object.get defaults so a DERIVED manifest that omits them still evaluates fully.
 #
 # Philosophy: this file IS the product. New policy = new rule here. New open
 # standard = new entry in library/standards.yaml. No platform required.
@@ -35,20 +39,17 @@ objs_in := object.get(input, "objectives", [])
 # Library helpers
 # ---------------------------------------------------------------------------
 
-# Set of standard ids that are open per the library.
 open_standard_ids contains id if {
 	some s in data.library.standards
 	s.open == true
 	id := s.id
 }
 
-# Is a referenced standard id known to the library at all?
 standard_known(id) if {
 	some s in data.library.standards
 	s.id == id
 }
 
-# Valid severability class ids from the taxonomy.
 severability_ids contains id if {
 	some c in data.library.severability_classes
 	id := c.id
@@ -63,18 +64,12 @@ key_interfaces contains iface if {
 	iface.key == true
 }
 
-key_interfaces_with_open_std contains iface if {
-	some iface in key_interfaces
-	some s in iface.standards
-	open_standard_ids[s]
-}
-
 # ---------------------------------------------------------------------------
-# DENY rules (gate-failing)
+# RAW violations (before waivers)
 # ---------------------------------------------------------------------------
 
 # Pillar 4: every designated key interface must reference >=1 open standard.
-deny contains f if {
+raw_deny contains f if {
 	some iface in key_interfaces
 	count({s | some s in iface.standards; open_standard_ids[s]}) == 0
 	f := {
@@ -86,7 +81,7 @@ deny contains f if {
 }
 
 # A claimed standard must exist in the library (catch typos / unvetted standards).
-deny contains f if {
+raw_deny contains f if {
 	some iface in ifaces_in
 	some s in iface.standards
 	not standard_known(s)
@@ -99,7 +94,7 @@ deny contains f if {
 }
 
 # Pillar 2: every module must carry a valid severability classification.
-deny contains f if {
+raw_deny contains f if {
 	some m in modules_in
 	not severability_ids[m.severability]
 	f := {
@@ -111,7 +106,7 @@ deny contains f if {
 }
 
 # Every asserted MOSA objective must trace to at least one element.
-deny contains f if {
+raw_deny contains f if {
 	some o in objs_in
 	count(o.tracesTo) == 0
 	f := {
@@ -123,7 +118,7 @@ deny contains f if {
 }
 
 # An interface must connect modules that actually exist in the manifest.
-deny contains f if {
+raw_deny contains f if {
 	some iface in ifaces_in
 	some endpoint in iface.between
 	not module_exists(endpoint)
@@ -141,10 +136,47 @@ module_exists(id) if {
 }
 
 # ---------------------------------------------------------------------------
+# Waivers: split raw violations into deny (still failing) vs waived (accepted)
+# ---------------------------------------------------------------------------
+
+waiver_matches_subject(w, f) if w.subject == f.subject
+
+waiver_matches_subject(w, f) if w.subject == "*"
+
+is_waived(f) if {
+	some w in data.waivers
+	w.code == f.code
+	waiver_matches_subject(w, f)
+}
+
+# Effective denials = raw violations NOT covered by an active waiver.
+deny contains f if {
+	some f in raw_deny
+	not is_waived(f)
+}
+
+# Waived findings are recorded (with attribution) but do not fail the gate.
+waived contains wf if {
+	some f in raw_deny
+	some w in data.waivers
+	w.code == f.code
+	waiver_matches_subject(w, f)
+	wf := {
+		"code": f.code,
+		"subject": f.subject,
+		"severity": f.severity,
+		"msg": f.msg,
+		"waived": true,
+		"approver": object.get(w, "approver", ""),
+		"justification": object.get(w, "justification", ""),
+		"expires": object.get(w, "expires", ""),
+	}
+}
+
+# ---------------------------------------------------------------------------
 # WARN rules (advisory)
 # ---------------------------------------------------------------------------
 
-# Key interfaces should be documented (publicly/contractually available spec).
 warn contains f if {
 	some iface in key_interfaces
 	not iface.documented
@@ -156,7 +188,6 @@ warn contains f if {
 	}
 }
 
-# Non-severable modules are a modularity risk worth surfacing.
 warn contains f if {
 	some m in modules_in
 	m.severability == "non-severable"
@@ -174,18 +205,19 @@ warn contains f if {
 
 n_key := count(key_interfaces)
 
-open_std_coverage := pct if {
-	n_key > 0
-	pct := round((100 * count(key_interfaces_with_open_std)) / n_key)
+key_interfaces_with_open_std contains iface if {
+	some iface in key_interfaces
+	some s in iface.standards
+	open_standard_ids[s]
 }
+
+open_std_coverage := round((100 * count(key_interfaces_with_open_std)) / n_key) if n_key > 0
 
 open_std_coverage := 0 if n_key == 0
 
 modules_severable := count({m | some m in modules_in; m.severability == "severable"})
 
-modularity_score := round((100 * modules_severable) / count(modules_in)) if {
-	count(modules_in) > 0
-}
+modularity_score := round((100 * modules_severable) / count(modules_in)) if count(modules_in) > 0
 
 modularity_score := 0 if count(modules_in) == 0
 
@@ -195,7 +227,6 @@ conformance_verified := round((100 * count({r | some r in reqs_in; r.conformance
 
 conformance_verified := 0 if count(reqs_in) == 0
 
-# Composite index: equal-weighted mean of the three component percentages.
 mosa_index := round((open_std_coverage + modularity_score + conformance_verified) / 3)
 
 metrics := {
@@ -205,6 +236,7 @@ metrics := {
 	"conformance_verified_pct": conformance_verified,
 	"mosa_index": mosa_index,
 	"deny_count": count(deny),
+	"waived_count": count(waived),
 	"warn_count": count(warn),
 }
 
@@ -219,6 +251,7 @@ pass if count(deny) == 0
 result := {
 	"pass": pass,
 	"deny": deny,
+	"waived": waived,
 	"warn": warn,
 	"metrics": metrics,
 }

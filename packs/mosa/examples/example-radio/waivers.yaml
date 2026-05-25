@@ -1,0 +1,19 @@
+# Example waiver set for the radio program.
+#
+# A waiver lets a justified, attributed, time-bounded exception PASS the gate
+# without hiding it: the finding is recorded in the receipt as WAIVED (with the
+# approver and justification), not silently dropped. This is how Tessera honors
+# MOSA's "to the maximum extent practicable" — exceptions are allowed, but only
+# when someone signs their name to a reason and an expiry.
+#
+# Subject "*" would waive every occurrence of the code; here we scope it to the
+# one interface. Expired waivers (expires < today) are ignored by the engine.
+waivers:
+  - code: KEY_IFACE_NO_OPEN_STD
+    subject: IF-CTRL-CRYPTO
+    approver: "PEO Example / MOSA Authorizing Official"
+    justification: >
+      The control-to-crypto link uses a government-furnished crypto bus; no
+      suitable open standard is available for this increment. To be re-evaluated
+      at the next technology-refresh milestone.
+    expires: "2027-12-31"

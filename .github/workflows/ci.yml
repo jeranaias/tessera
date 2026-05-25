@@ -53,3 +53,23 @@ jobs:
             | ./tessera --pack packs/mosa --manifest -
           code=$?
           test "$code" -eq 2 || { echo "expected exit 2, got $code"; exit 1; }
+
+      - name: Sign a receipt, then independently verify it
+        run: |
+          ./tessera check --pack packs/mosa \
+            --manifest packs/mosa/examples/example-radio/manifest.yaml --out r.json || true
+          ./tessera verify r.json
+
+      - name: Waiver flow — a justified, attributed exception passes the gate
+        run: |
+          ./tessera check --pack packs/mosa \
+            --manifest packs/mosa/examples/example-radio/manifest.yaml \
+            --waivers packs/mosa/examples/example-radio/waivers.yaml
+
+      - name: A tampered receipt is rejected (exit 3)
+        run: |
+          set +e
+          sed 's/"pass": false/"pass": true/' r.json > faked.json
+          ./tessera verify faked.json
+          code=$?
+          test "$code" -eq 3 || { echo "expected exit 3 for tampered receipt, got $code"; exit 1; }

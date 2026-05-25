@@ -94,12 +94,15 @@ overlay," made concrete.
 # build the engine (one static binary; first build downloads dependencies)
 go build -o tessera.exe ./cmd/tessera
 
-# MOSA pack
-./tessera.exe --pack packs/mosa \
+# check the MOSA pack and write a signed receipt
+./tessera.exe check --pack packs/mosa \
   --manifest packs/mosa/examples/example-radio/manifest.yaml --out receipt.json
 
+# independently verify that receipt (signature + digest + optional chain)
+./tessera.exe verify receipt.json
+
 # the SAME binary, a different pack — no engine code changed
-./tessera.exe --pack packs/cyber-rmf \
+./tessera.exe check --pack packs/cyber-rmf \
   --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
 ```
 
@@ -147,6 +150,36 @@ The model marks the control↔crypto link as running on a proprietary bus, so th
 declare it. It's a documented SysML v2 *subset* parser (pure-Python, stdlib only,
 air-gap friendly); objectives/requirements derivation and XMI/Capella adapters are
 next. This is the single most important step toward real verification.
+
+## Sign, verify, and waive
+
+Every `check` emits a signed receipt; `verify` checks it independently — a
+signature nobody can verify is theater:
+
+```bash
+./tessera.exe verify receipt.json                 # digest + signature + report verdict
+./tessera.exe verify receipt.json --key <pubkey>  # REQUIRE a specific signer (pin trust)
+```
+
+`verify` recomputes the report's digest, checks the Ed25519 signature, and (with
+`--key`) refuses any receipt not signed by the key you trust. Tampering with the
+report — e.g. flipping a `FAIL` to `PASS` — breaks the digest *and* the signature,
+so `verify` exits non-zero.
+
+**Waivers** honor MOSA's "to the maximum extent practicable." A non-severable
+module or a proprietary key interface is sometimes legitimately justified (GFE
+crypto, safety). A waiver doesn't hide the finding — it records it as `WAIVED`
+with an **approver**, a **justification**, and an **expiry**, and lets the gate pass:
+
+```bash
+./tessera.exe check --pack packs/mosa \
+  --manifest packs/mosa/examples/example-radio/manifest.yaml \
+  --waivers  packs/mosa/examples/example-radio/waivers.yaml
+# -> PASS, with [WAIVED] KEY_IFACE_NO_OPEN_STD recorded in the signed receipt
+```
+
+Expired waivers (`expires` < today) are ignored, so exceptions can't quietly
+become permanent.
 
 ## What's in the box
 

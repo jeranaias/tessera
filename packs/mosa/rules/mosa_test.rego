@@ -79,3 +79,44 @@ test_metrics_full_marks if {
 	res.metrics.conformance_verified_pct == 100
 	res.metrics.mosa_index == 100
 }
+
+_proprietary_bom := {
+	"modules": [{"id": "M1", "severability": "severable"}, {"id": "M2", "severability": "severable"}],
+	"interfaces": [{"id": "IF1", "key": true, "between": ["M1", "M2"], "standards": ["VENDOR-PROPRIETARY-BUS"]}],
+	"objectives": [],
+	"requirements": [],
+}
+
+# An active, matching waiver moves the violation to `waived` and the gate PASSES.
+test_active_waiver_moves_deny_to_waived if {
+	waivers := [{
+		"code": "KEY_IFACE_NO_OPEN_STD",
+		"subject": "IF1",
+		"approver": "PEO Radios",
+		"justification": "GFE crypto bus; open standard not available this increment",
+		"expires": "2099-12-31",
+	}]
+	res := result with input as _proprietary_bom with data.library as stub_library with data.waivers as waivers
+	res.pass == true
+	count(res.deny) == 0
+	count({f | some f in res.waived; f.code == "KEY_IFACE_NO_OPEN_STD"}) == 1
+	some w in res.waived
+	w.approver == "PEO Radios"
+}
+
+# A waiver for a different subject does NOT apply; the gate still fails.
+test_waiver_wrong_subject_does_not_apply if {
+	waivers := [{"code": "KEY_IFACE_NO_OPEN_STD", "subject": "SOMETHING_ELSE", "approver": "x", "expires": "2099-12-31"}]
+	res := result with input as _proprietary_bom with data.library as stub_library with data.waivers as waivers
+	res.pass == false
+	count(res.deny) == 1
+	count(res.waived) == 0
+}
+
+# A wildcard subject ("*") waiver applies to the matching code.
+test_wildcard_waiver_applies if {
+	waivers := [{"code": "KEY_IFACE_NO_OPEN_STD", "subject": "*", "approver": "AO", "expires": "2099-12-31"}]
+	res := result with input as _proprietary_bom with data.library as stub_library with data.waivers as waivers
+	res.pass == true
+	count(res.waived) == 1
+}

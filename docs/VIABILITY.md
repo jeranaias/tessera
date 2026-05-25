@@ -121,9 +121,19 @@ UAF domain-overlay construct." See [`../AUTHORS.md`](../AUTHORS.md).
    declared** — the start of attestation → verification. Documented subset; next:
    derive objectives/requirements, and add UAF/SysML 1.x XMI + Capella adapters.
 2. ✅ **CI gate (shipped):** `.github/workflows/ci.yml` builds, tests every pack,
-   gates both examples, runs the adapter, and runs the end-to-end derive→gate pipe.
-3. **Signed, justified waivers** so it matches "maximum extent practicable."
-4. *(Optional, later)* a cost-benefit module to chase GAO Recommendation #1.
+   gates both examples, runs the adapter, runs the end-to-end derive→gate pipe,
+   signs a receipt + verifies it, exercises the waiver flow, and rejects a
+   tampered receipt.
+3. ✅ **Receipt verification (shipped):** `tessera verify` independently checks a
+   receipt's digest + Ed25519 signature, can **pin a trusted signer** (`--key`),
+   and can enforce chain linkage (`--prev`). A signed artifact nobody can verify
+   is theater; now it isn't.
+4. ✅ **Signed, justified waivers (shipped):** `--waivers` lets a justified,
+   attributed, **expiring** exception pass the gate while recording it as
+   `WAIVED` — honoring "to the maximum extent practicable" without hiding it.
+5. **Derive objectives/requirements** in the adapter; add UAF/SysML 1.x XMI +
+   Capella adapters; harden the cyber-rmf rules like MOSA's.
+6. *(Optional, later)* a cost-benefit module to chase GAO Recommendation #1.
 
 ## Sources
 
