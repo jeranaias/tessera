@@ -188,6 +188,7 @@ tessera/
 ├── README.md                       ← you are here
 ├── AUTHORS.md                      ← concept & design credit (Tony Maida) + provenance
 ├── docs/VIABILITY.md               ← honest "is this viable?" assessment — read it
+├── docs/CONOPS.md                  ← how a program uses it across a milestone + trust model
 ├── cmd/tessera/main.go             ← the engine (Go; embeds OPA; ~300 lines, domain-agnostic)
 ├── rulestest/                      ← `go test` harness that runs EVERY pack's rules
 ├── adapters/sysmlv2/               ← derive a manifest FROM a SysML v2 model (gap-closer)

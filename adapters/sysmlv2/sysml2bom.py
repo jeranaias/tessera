@@ -17,6 +17,8 @@ SUPPORTED SUBSET — documented honestly; this is NOT a full SysML v2 parser:
     connection <name> [: <Def>] connect <a> to <b> {
         @MOSA { key=true; standards="A,B"; documented=true; }
     }
+    @MOSAObjective { id="OBJ-..."; tracesTo="a,b"; }            (anywhere)
+    requirement <name> { @MOSA { conformance="verified"; tracesTo="x"; } }
 
 Conventions:
   * A `part` becomes a MOSA module iff its body carries an `@MOSA` block with
@@ -25,8 +27,8 @@ Conventions:
   * `standards` is a comma-separated string; it is split into a list.
   * Line (//) and block (/* */) comments are ignored.
 
-NOT YET DERIVED (still self-declared if needed): objectives, requirements,
-cost, risk. See ../../docs/VIABILITY.md.
+NOT YET DERIVED (still self-declared if needed): cost, risk. See
+../../docs/VIABILITY.md.
 
 Usage:
     python sysml2bom.py model.sysml            # JSON manifest to stdout
@@ -153,12 +155,36 @@ def parse(text: str) -> dict:
             }
         )
 
-    return {
+    objectives = []
+    for m in re.finditer(r"@MOSAObjective\s*\{", text):
+        oi = text.index("{", m.start())
+        kv = parse_kv(text[oi + 1 : matching_brace(text, oi)])
+        if "id" in kv:
+            traces = [s.strip() for s in str(kv.get("tracesTo", "")).split(",") if s.strip()]
+            objectives.append({"id": kv["id"], "tracesTo": traces})
+
+    requirements = []
+    for m in re.finditer(r"\brequirement\s+(\w+)\s*\{", text):
+        name = m.group(1)
+        oi = m.end() - 1
+        meta = find_mosa(text[oi + 1 : matching_brace(text, oi)]) or {}
+        req = {"id": name, "conformance": meta.get("conformance", "none")}
+        traces = [s.strip() for s in str(meta.get("tracesTo", "")).split(",") if s.strip()]
+        if traces:
+            req["tracesTo"] = traces
+        requirements.append(req)
+
+    bom = {
         "mosaManifestVersion": "0.1",
         "program": program,
         "modules": modules,
         "interfaces": interfaces,
     }
+    if objectives:
+        bom["objectives"] = objectives
+    if requirements:
+        bom["requirements"] = requirements
+    return bom
 
 
 def main(argv=None) -> int:

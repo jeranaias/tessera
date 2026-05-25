@@ -61,6 +61,19 @@ def test_non_key_interface_defaults():
     assert ifaces["ifInternal"]["between"] == ["control", "rf"]
 
 
+def test_objectives_derived_from_model():
+    objs = {o["id"]: o for o in _radio_bom().get("objectives", [])}
+    assert "OBJ-OPEN-STANDARDS" in objs
+    assert objs["OBJ-MODULAR-DESIGN"]["tracesTo"] == ["rf", "waveform", "control"]
+
+
+def test_requirements_derived_from_model():
+    reqs = {r["id"]: r for r in _radio_bom().get("requirements", [])}
+    assert reqs["reqFaceConformance"]["conformance"] == "verified"
+    assert reqs["reqFaceConformance"]["tracesTo"] == ["ifRfWf"]
+    assert reqs["reqDdsConformance"]["conformance"] == "planned"
+
+
 def test_derivation_defeats_a_false_claim():
     # If a model is edited to use an open standard, the derived manifest changes
     # accordingly — you cannot make the manifest lie about what the model says.

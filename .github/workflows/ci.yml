@@ -39,6 +39,9 @@ jobs:
           code=$?
           test "$code" -eq 2 || { echo "expected exit 2, got $code"; exit 1; }
 
+      - name: Clean MOSA example PASSES the gate (exit 0)
+        run: ./tessera check --pack packs/mosa --manifest packs/mosa/examples/example-radio-clean/manifest.yaml
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

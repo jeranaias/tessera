@@ -1,0 +1,49 @@
+# A clean MOSA-BOM that PASSES the gate with no waivers: every key interface uses
+# an open standard, every module is severable, objectives trace, and the one
+# requirement is verified. This is the positive path (exit 0).
+mosaManifestVersion: "0.1"
+
+program:
+  id: PRG-SDR-CLEAN
+  name: Example Modular SDR (clean)
+  milestone: MS-C
+  tier: minimal
+
+modules:
+  - id: M-RF
+    name: RF Front End
+    severability: severable
+    supplier: VendorA
+  - id: M-WAVEFORM
+    name: Waveform Processing
+    severability: severable
+    supplier: VendorB
+  - id: M-CONTROL
+    name: Radio Control App
+    severability: severable
+    supplier: VendorA
+
+interfaces:
+  - id: IF-RF-WF
+    name: RF <-> Waveform
+    key: true
+    between: [M-RF, M-WAVEFORM]
+    standards: [MORA, REDHAWK]
+    documented: true
+  - id: IF-WF-CTRL
+    name: Waveform <-> Control
+    key: true
+    between: [M-WAVEFORM, M-CONTROL]
+    standards: [DDS-1.4]
+    documented: true
+
+objectives:
+  - id: OBJ-MODULAR-DESIGN
+    tracesTo: [M-RF, M-WAVEFORM, M-CONTROL]
+  - id: OBJ-OPEN-STANDARDS
+    tracesTo: [IF-RF-WF, IF-WF-CTRL]
+
+requirements:
+  - id: REQ-FACE-CONF
+    conformance: verified
+    tracesTo: [IF-RF-WF]

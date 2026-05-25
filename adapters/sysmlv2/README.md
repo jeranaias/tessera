@@ -34,6 +34,8 @@ This is a **documented subset parser**, not a full SysML v2 implementation:
 | `@Program { id; name; milestone; }` (top-level) | `program` |
 | `part <usage> [: Def] { @MOSA { severability; supplier; } }` | a `module` |
 | `connection <n> [: Def] connect <a> to <b> { @MOSA { key; standards; documented; } }` | an `interface` |
+| `@MOSAObjective { id; tracesTo; }` (anywhere) | an `objective` |
+| `requirement <n> { @MOSA { conformance; tracesTo; } }` | a `requirement` |
 
 Conventions:
 - A `part` becomes a module only if its body has an `@MOSA` block with
@@ -43,8 +45,8 @@ Conventions:
 - `//` and `/* */` comments are ignored.
 
 **Not yet derived** (would still be self-declared if your rules need them):
-objectives, requirements, cost, risk. Pure-Python, stdlib only (no pip install),
-so it runs in an air-gapped environment.
+cost, risk. Pure-Python, stdlib only (no pip install), so it runs in an
+air-gapped environment.
 
 ## Tests
 
@@ -54,6 +56,7 @@ python test_sysml2bom.py        # stdlib only; also works under pytest
 
 ## Roadmap
 
-- Derive objectives/requirements traceability from the model.
+- ✅ Derive objectives and requirements traceability from the model.
+- Derive cost/risk (extended-tier manifest) where the model carries it.
 - Adapters for UAF/SysML 1.x XMI and Capella, and for build artifacts.
 - A `--strict` mode that fails if the model is missing required `@MOSA` metadata.

@@ -42,4 +42,16 @@ package RadioModel {
             @MOSA { key = false; }
         }
     }
+
+    // MOSA objectives this program asserts, traced to the elements that realize them.
+    @MOSAObjective { id = "OBJ-MODULAR-DESIGN"; tracesTo = "rf,waveform,control"; }
+    @MOSAObjective { id = "OBJ-OPEN-STANDARDS"; tracesTo = "ifRfWf,ifWfCtrl"; }
+
+    // Conformance requirements (feed the conformance-verified metric).
+    requirement reqFaceConformance {
+        @MOSA { conformance = "verified"; tracesTo = "ifRfWf"; }
+    }
+    requirement reqDdsConformance {
+        @MOSA { conformance = "planned"; tracesTo = "ifWfCtrl"; }
+    }
 }
