@@ -111,15 +111,18 @@ UAF domain-overlay construct." See [`../AUTHORS.md`](../AUTHORS.md).
 | Is this "the answer to MOSA"? | **No.** Doesn't touch cost-benefit, IP/data rights, incentives, or the engineering. |
 | Is it a viable, valuable component? | **Yes** — a signed verification/attestation + planning-completeness gate (GAO gaps). |
 | Is the niche defensible? | **Partly.** Differentiated (automatable/signed/cross-standard/open) but not empty. |
-| What's the make-or-break? | The **deferred adapters**: until the manifest is *derived*, you sign claims, not reality. |
+| What's the make-or-break? | The **adapters**: until the manifest is *derived*, you sign claims, not reality. **First cut shipped** (SysML v2); see roadmap. |
 | Why generalize the engine? | The reusable signed-conformance engine outlives any single domain; MOSA is the lighthouse. |
 
 ## Roadmap to actual viability
 
-1. **One model-import adapter** (UAF/SysML/Capella → manifest) so the manifest is
-   **derived, not declared.** This is the real moat and it benefits every pack.
-2. **Signed, justified waivers** so it matches "maximum extent practicable."
-3. **CI gate demo** — run packs on every PR; show a green conformance badge.
+1. ✅ **First model-import adapter (shipped):** [`adapters/sysmlv2/`](../adapters/sysmlv2)
+   derives a MOSA-BOM from a **SysML v2** model, so the manifest is **derived, not
+   declared** — the start of attestation → verification. Documented subset; next:
+   derive objectives/requirements, and add UAF/SysML 1.x XMI + Capella adapters.
+2. ✅ **CI gate (shipped):** `.github/workflows/ci.yml` builds, tests every pack,
+   gates both examples, runs the adapter, and runs the end-to-end derive→gate pipe.
+3. **Signed, justified waivers** so it matches "maximum extent practicable."
 4. *(Optional, later)* a cost-benefit module to chase GAO Recommendation #1.
 
 ## Sources

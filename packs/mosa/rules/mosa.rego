@@ -1,6 +1,6 @@
 # MOSA conformance rules pack.
 #
-# Input  (`input`)        : a MOSA-BOM manifest (see schema/mosa-manifest.schema.json)
+# Input  (`input`)        : a MOSA-BOM manifest (see schema/manifest.schema.json)
 # Data   (`data.library`) : merged content of library/*.yaml (standards, objectives,
 #                           severability_classes)
 #
@@ -8,12 +8,28 @@
 #   deny  -> gate-failing violations (CI exit 2)
 #   warn  -> advisory findings (do not fail the gate)
 #
+# Optional manifest sections (requirements, objectives) are normalized with
+# object.get defaults so a manifest that omits them — e.g. one DERIVED from a
+# model by an adapter — still evaluates to a complete result.
+#
 # Philosophy: this file IS the product. New policy = new rule here. New open
 # standard = new entry in library/standards.yaml. No platform required.
 
 package mosa
 
 import rego.v1
+
+# ---------------------------------------------------------------------------
+# Normalized inputs (robust to missing optional keys)
+# ---------------------------------------------------------------------------
+
+modules_in := object.get(input, "modules", [])
+
+ifaces_in := object.get(input, "interfaces", [])
+
+reqs_in := object.get(input, "requirements", [])
+
+objs_in := object.get(input, "objectives", [])
 
 # ---------------------------------------------------------------------------
 # Library helpers
@@ -43,7 +59,7 @@ severability_ids contains id if {
 # ---------------------------------------------------------------------------
 
 key_interfaces contains iface if {
-	some iface in input.interfaces
+	some iface in ifaces_in
 	iface.key == true
 }
 
@@ -71,7 +87,7 @@ deny contains f if {
 
 # A claimed standard must exist in the library (catch typos / unvetted standards).
 deny contains f if {
-	some iface in input.interfaces
+	some iface in ifaces_in
 	some s in iface.standards
 	not standard_known(s)
 	f := {
@@ -84,7 +100,7 @@ deny contains f if {
 
 # Pillar 2: every module must carry a valid severability classification.
 deny contains f if {
-	some m in input.modules
+	some m in modules_in
 	not severability_ids[m.severability]
 	f := {
 		"code": "MODULE_BAD_SEVERABILITY",
@@ -96,7 +112,7 @@ deny contains f if {
 
 # Every asserted MOSA objective must trace to at least one element.
 deny contains f if {
-	some o in input.objectives
+	some o in objs_in
 	count(o.tracesTo) == 0
 	f := {
 		"code": "OBJECTIVE_NO_TRACE",
@@ -108,7 +124,7 @@ deny contains f if {
 
 # An interface must connect modules that actually exist in the manifest.
 deny contains f if {
-	some iface in input.interfaces
+	some iface in ifaces_in
 	some endpoint in iface.between
 	not module_exists(endpoint)
 	f := {
@@ -120,7 +136,7 @@ deny contains f if {
 }
 
 module_exists(id) if {
-	some m in input.modules
+	some m in modules_in
 	m.id == id
 }
 
@@ -142,7 +158,7 @@ warn contains f if {
 
 # Non-severable modules are a modularity risk worth surfacing.
 warn contains f if {
-	some m in input.modules
+	some m in modules_in
 	m.severability == "non-severable"
 	f := {
 		"code": "MODULE_NON_SEVERABLE",
@@ -165,19 +181,19 @@ open_std_coverage := pct if {
 
 open_std_coverage := 0 if n_key == 0
 
-modules_severable := count({m | some m in input.modules; m.severability == "severable"})
+modules_severable := count({m | some m in modules_in; m.severability == "severable"})
 
-modularity_score := round((100 * modules_severable) / count(input.modules)) if {
-	count(input.modules) > 0
+modularity_score := round((100 * modules_severable) / count(modules_in)) if {
+	count(modules_in) > 0
 }
 
-modularity_score := 0 if count(input.modules) == 0
+modularity_score := 0 if count(modules_in) == 0
 
-conformance_verified := round((100 * count({r | some r in input.requirements; r.conformance == "verified"})) / count(input.requirements)) if {
-	count(input.requirements) > 0
+conformance_verified := round((100 * count({r | some r in reqs_in; r.conformance == "verified"})) / count(reqs_in)) if {
+	count(reqs_in) > 0
 }
 
-conformance_verified := 0 if count(input.requirements) == 0
+conformance_verified := 0 if count(reqs_in) == 0
 
 # Composite index: equal-weighted mean of the three component percentages.
 mosa_index := round((open_std_coverage + modularity_score + conformance_verified) / 3)

@@ -33,6 +33,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,7 +75,7 @@ type receipt struct {
 func main() {
 	var packDir, manifestPath, outPath, keyPath string
 	flag.StringVar(&packDir, "pack", "", "path to a pack directory (containing pack.yaml)")
-	flag.StringVar(&manifestPath, "manifest", "", "path to the manifest to check (yaml/json)")
+	flag.StringVar(&manifestPath, "manifest", "", "path to the manifest to check (yaml/json), or - for stdin")
 	flag.StringVar(&outPath, "out", "", "path to write the signed receipt (optional)")
 	flag.StringVar(&keyPath, "key", "tessera-ed25519.key", "ed25519 private key file (generated if absent)")
 	flag.Parse()
@@ -90,9 +91,13 @@ func main() {
 	rulesDir := filepath.Join(packDir, pack.Rules)
 	libDir := filepath.Join(packDir, pack.Library)
 
-	input, err := loadYAMLMap(manifestPath)
+	input, err := loadManifest(manifestPath)
 	if err != nil {
 		fail("loading manifest: %v", err)
+	}
+	manifestName := "stdin"
+	if manifestPath != "-" {
+		manifestName = filepath.Base(manifestPath)
 	}
 	lib, err := mergeLibrary(libDir)
 	if err != nil {
@@ -121,7 +126,7 @@ func main() {
 		Pack:        pack.Pack,
 		PackTitle:   pack.Title,
 		PackVersion: pack.Version,
-		Manifest:    filepath.Base(manifestPath),
+		Manifest:    manifestName,
 		SignedAt:    time.Now().UTC().Format(time.RFC3339),
 		Report:      report,
 		Digest:      digest,
@@ -237,8 +242,27 @@ func loadYAMLMap(path string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	return unmarshalYAMLMap(b)
+}
+
+// loadManifest reads the manifest from a file, or from stdin when path is "-".
+// This lets an adapter pipe a derived manifest straight in:
+//
+//	python sysml2bom.py model.sysml | tessera --pack packs/mosa --manifest -
+func loadManifest(path string) (map[string]any, error) {
+	if path == "-" {
+		b, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, err
+		}
+		return unmarshalYAMLMap(b)
+	}
+	return loadYAMLMap(path)
+}
+
+func unmarshalYAMLMap(b []byte) (map[string]any, error) {
 	var m map[string]any
-	if err := yaml.Unmarshal(b, &m); err != nil { // YAML -> JSON-compatible types
+	if err := yaml.Unmarshal(b, &m); err != nil { // YAML (and JSON) -> JSON-compatible types
 		return nil, err
 	}
 	return m, nil

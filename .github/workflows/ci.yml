@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Build
+        run: go build ./...
+
+      - name: Unit tests (every pack's Rego rules)
+        run: go test ./...
+
+      - name: Build the tessera binary
+        run: go build -o tessera ./cmd/tessera
+
+      - name: MOSA example gate-fails as expected (exit 2)
+        run: |
+          set +e
+          ./tessera --pack packs/mosa --manifest packs/mosa/examples/example-radio/manifest.yaml
+          code=$?
+          test "$code" -eq 2 || { echo "expected exit 2, got $code"; exit 1; }
+
+      - name: cyber-rmf example gate-fails as expected (exit 2)
+        run: |
+          set +e
+          ./tessera --pack packs/cyber-rmf --manifest packs/cyber-rmf/examples/example-system/manifest.yaml
+          code=$?
+          test "$code" -eq 2 || { echo "expected exit 2, got $code"; exit 1; }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Adapter self-tests
+        run: python adapters/sysmlv2/test_sysml2bom.py
+
+      - name: End-to-end — derive manifest from a SysML v2 model, then gate
+        run: |
+          set +e
+          python adapters/sysmlv2/sysml2bom.py adapters/sysmlv2/examples/radio.sysml \
+            | ./tessera --pack packs/mosa --manifest -
+          code=$?
+          test "$code" -eq 2 || { echo "expected exit 2, got $code"; exit 1; }

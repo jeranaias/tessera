@@ -1,5 +1,6 @@
 # Tessera
 
+[![CI](https://github.com/jeranaias/tessera/actions/workflows/ci.yml/badge.svg)](https://github.com/jeranaias/tessera/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Status: rough draft](https://img.shields.io/badge/status-rough%20draft-orange.svg)](#status--honest-scope)
 [![Built with Rego + Go](https://img.shields.io/badge/built%20with-Rego%20%2B%20Go-00ADD8.svg)](#whats-in-the-box)
@@ -123,10 +124,29 @@ the previous receipt's fingerprint, so receipts form a tamper-evident chain.
 
 The manifest is **self-declared**. A signed receipt proves "the program *asserted*
 X and X passes the rules" — **not** that the assertion matches the real system.
-That makes today's output **attestation, not verification.** Turning it into real
-verification means deriving the manifest from the actual model or build (the
-adapter roadmap). See [`docs/VIABILITY.md`](docs/VIABILITY.md) for the full,
+That makes today's output **attestation, not verification.** Closing that gap means
+deriving the manifest from the actual model or build — which the **first adapter
+now does** (see below). See [`docs/VIABILITY.md`](docs/VIABILITY.md) for the full,
 unsparing assessment, the GAO context, and the existing-tooling landscape.
+
+## From declared to derived (the adapter)
+
+A hand-written manifest can lie; a manifest **derived from the model** cannot lie
+about what the model says. [`adapters/sysmlv2/`](adapters/sysmlv2) reads a
+**SysML v2** model and emits a MOSA-BOM, so the facts come from engineering, not
+assertion:
+
+```bash
+# derive a manifest from a SysML v2 model, then gate it — one pipe
+python adapters/sysmlv2/sysml2bom.py adapters/sysmlv2/examples/radio.sysml \
+  | ./tessera.exe --pack packs/mosa --manifest -
+```
+
+The model marks the control↔crypto link as running on a proprietary bus, so the
+*derived* manifest reflects that and the gate fails it — no one had to remember to
+declare it. It's a documented SysML v2 *subset* parser (pure-Python, stdlib only,
+air-gap friendly); objectives/requirements derivation and XMI/Capella adapters are
+next. This is the single most important step toward real verification.
 
 ## What's in the box
 
@@ -137,6 +157,8 @@ tessera/
 ├── docs/VIABILITY.md               ← honest "is this viable?" assessment — read it
 ├── cmd/tessera/main.go             ← the engine (Go; embeds OPA; ~300 lines, domain-agnostic)
 ├── rulestest/                      ← `go test` harness that runs EVERY pack's rules
+├── adapters/sysmlv2/               ← derive a manifest FROM a SysML v2 model (gap-closer)
+├── .github/workflows/ci.yml        ← CI gate: build, test, both packs, adapter, end-to-end
 └── packs/
     ├── mosa/                       ← flagship pack
     │   ├── pack.yaml               ←   descriptor (rules dir, library dir, Rego query)
