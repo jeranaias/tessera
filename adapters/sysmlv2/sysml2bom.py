@@ -11,8 +11,9 @@ SUPPORTED SUBSET — documented honestly; this is NOT a full SysML v2 parser:
 
     package <Name> { ... }
     @Program { id="..."; name="..."; milestone="..."; }        // optional, top-level
-    part <usage> [: <Def>] {
-        @MOSA { severability="..."; supplier="..."; }           // makes it a module
+    part <usage> [: <Def>] {                                   // makes it a module
+        @MOSA { severability="..."; supplier="...";
+                cost=1200000; riskLikelihood=4; riskConsequence=5; }  // cost/risk: extended tier
     }
     connection <name> [: <Def>] connect <a> to <b> {
         @MOSA { key=true; standards="A,B"; documented=true; }
@@ -25,10 +26,8 @@ Conventions:
     `severability`, appearing BEFORE any nested part/connection (so container
     parts are not mistaken for modules).
   * `standards` is a comma-separated string; it is split into a list.
+  * `cost` -> a cost[] entry; `riskLikelihood`+`riskConsequence` -> a risks[] entry.
   * Line (//) and block (/* */) comments are ignored.
-
-NOT YET DERIVED (still self-declared if needed): cost, risk. See
-../../docs/VIABILITY.md.
 
 Usage:
     python sysml2bom.py model.sysml            # JSON manifest to stdout
@@ -83,6 +82,18 @@ def parse_kv(block: str) -> dict:
     return out
 
 
+def _num(s):
+    """Coerce a metadata string to int or float; None if not numeric."""
+    s = str(s).strip()
+    try:
+        return int(s)
+    except ValueError:
+        try:
+            return float(s)
+        except ValueError:
+            return None
+
+
 def find_mosa(block: str) -> dict | None:
     m = re.search(r"@MOSA\s*\{", block)
     if not m:
@@ -116,6 +127,8 @@ def parse(text: str) -> dict:
             program["id"] = program["name"] = pkg.group(1)
 
     modules = []
+    cost_entries = []
+    risk_entries = []
     for m in _PART_RE.finditer(text):
         name = m.group(1)
         oi = m.end() - 1  # the '{'
@@ -132,6 +145,15 @@ def parse(text: str) -> dict:
         if "supplier" in meta:
             mod["supplier"] = meta["supplier"]
         modules.append(mod)
+
+        # Extended tier: derive cost and risk attached to the module.
+        if "cost" in meta:
+            c = _num(meta["cost"])
+            if c is not None:
+                cost_entries.append({"ref": name, "pointEstimate": c})
+        rl, rc = _num(meta.get("riskLikelihood")), _num(meta.get("riskConsequence"))
+        if rl is not None and rc is not None:
+            risk_entries.append({"id": "RISK-" + name, "ref": name, "likelihood": rl, "consequence": rc})
 
     interfaces = []
     for m in _CONN_RE.finditer(text):
@@ -184,6 +206,10 @@ def parse(text: str) -> dict:
         bom["objectives"] = objectives
     if requirements:
         bom["requirements"] = requirements
+    if cost_entries:
+        bom["cost"] = cost_entries
+    if risk_entries:
+        bom["risks"] = risk_entries
     return bom
 
 

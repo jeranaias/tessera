@@ -15,7 +15,7 @@ package RadioModel {
 
     part radio {
         part rf : Module {
-            @MOSA { severability = "severable"; supplier = "VendorA"; }
+            @MOSA { severability = "severable"; supplier = "VendorA"; cost = 300000; }
         }
         part waveform : Module {
             @MOSA { severability = "severable"; supplier = "VendorB"; }
@@ -24,7 +24,10 @@ package RadioModel {
             @MOSA { severability = "severable"; supplier = "VendorA"; }
         }
         part crypto : Module {
-            @MOSA { severability = "non-severable"; supplier = "GovGFE"; }
+            @MOSA {
+                severability = "non-severable"; supplier = "GovGFE";
+                cost = 1200000; riskLikelihood = 4; riskConsequence = 5;
+            }
         }
 
         connection ifRfWf : KeyInterface connect rf to waveform {

@@ -35,6 +35,17 @@ reqs_in := object.get(input, "requirements", [])
 
 objs_in := object.get(input, "objectives", [])
 
+cost_in := object.get(input, "cost", [])
+
+risks_in := object.get(input, "risks", [])
+
+# Severability of a module by id (undefined if not found).
+severability_of(id) := s if {
+	some m in modules_in
+	m.id == id
+	s := m.severability
+}
+
 # ---------------------------------------------------------------------------
 # Library helpers
 # ---------------------------------------------------------------------------
@@ -212,6 +223,21 @@ warn contains f if {
 	}
 }
 
+# Extended tier: a non-severable module carrying high risk (likelihood x
+# consequence >= 15 of 25) is where modularity gaps are most expensive to ignore.
+warn contains f if {
+	some r in risks_in
+	severability_of(r.ref) == "non-severable"
+	exposure := r.likelihood * r.consequence
+	exposure >= 15
+	f := {
+		"code": "HIGH_RISK_NON_SEVERABLE",
+		"severity": "low",
+		"subject": r.ref,
+		"msg": sprintf("non-severable module %q carries high risk (exposure %v of 25)", [r.ref, exposure]),
+	}
+}
+
 # ---------------------------------------------------------------------------
 # Metrics & composite MOSA index
 # ---------------------------------------------------------------------------
@@ -242,12 +268,23 @@ conformance_verified := 0 if count(reqs_in) == 0
 
 mosa_index := round((open_std_coverage + modularity_score + conformance_verified) / 3)
 
+# Value view (extended tier): total cost, and the cost sitting behind modules that
+# can't be re-competed/refreshed without redesign — what a PM most wants surfaced.
+total_cost := sum([c.pointEstimate | some c in cost_in])
+
+cost_locked_in_non_severable := sum([c.pointEstimate |
+	some c in cost_in
+	severability_of(c.ref) == "non-severable"
+])
+
 metrics := {
 	"key_interfaces": n_key,
 	"open_std_coverage_pct": open_std_coverage,
 	"modularity_score_pct": modularity_score,
 	"conformance_verified_pct": conformance_verified,
 	"mosa_index": mosa_index,
+	"total_cost": total_cost,
+	"cost_locked_in_non_severable": cost_locked_in_non_severable,
 	"deny_count": count(deny),
 	"waived_count": count(waived),
 	"warn_count": count(warn),

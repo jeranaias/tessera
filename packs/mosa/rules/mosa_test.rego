@@ -120,3 +120,27 @@ test_wildcard_waiver_applies if {
 	res.pass == true
 	count(res.waived) == 1
 }
+
+# Extended tier: cost rolls up, cost behind non-severable modules is isolated, and
+# a high-risk non-severable module raises an advisory.
+test_value_metrics_and_high_risk_warn if {
+	bom := {
+		"modules": [
+			{"id": "M1", "severability": "severable"},
+			{"id": "M2", "severability": "non-severable"},
+		],
+		"interfaces": [{"id": "IF1", "key": true, "between": ["M1", "M2"], "standards": ["FACE-3.1"]}],
+		"objectives": [],
+		"requirements": [],
+		"cost": [
+			{"ref": "M1", "pointEstimate": 100},
+			{"ref": "M2", "pointEstimate": 900},
+		],
+		"risks": [{"id": "R", "ref": "M2", "likelihood": 4, "consequence": 5}],
+	}
+	res := result with input as bom with data.library as stub_library
+	res.metrics.total_cost == 1000
+	res.metrics.cost_locked_in_non_severable == 900
+	count({f | some f in res.warn; f.code == "HIGH_RISK_NON_SEVERABLE"}) == 1
+	res.pass == true
+}

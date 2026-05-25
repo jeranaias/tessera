@@ -74,6 +74,16 @@ def test_requirements_derived_from_model():
     assert reqs["reqDdsConformance"]["conformance"] == "planned"
 
 
+def test_cost_and_risk_derived():
+    bom = _radio_bom()
+    cost = {c["ref"]: c for c in bom.get("cost", [])}
+    assert cost["crypto"]["pointEstimate"] == 1200000
+    assert cost["rf"]["pointEstimate"] == 300000
+    risks = {r["ref"]: r for r in bom.get("risks", [])}
+    assert risks["crypto"]["likelihood"] == 4
+    assert risks["crypto"]["consequence"] == 5
+
+
 def test_derivation_defeats_a_false_claim():
     # If a model is edited to use an open standard, the derived manifest changes
     # accordingly — you cannot make the manifest lie about what the model says.

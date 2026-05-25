@@ -42,7 +42,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const toolVersion = "0.3.0-rough"
+const toolVersion = "0.3.1-rough"
 
 // packDescriptor is the pack.yaml contract.
 type packDescriptor struct {
