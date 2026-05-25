@@ -224,6 +224,7 @@ Rough draft, but it runs and it's tested in CI. Real and working today:
 - **manifest schema validation** — malformed manifests are rejected with precise errors
 - **signed receipts** + independent **verification** (digest, Ed25519 signature, key pinning, chain linkage)
 - **signed, expiring, attributed waivers** ("to the maximum extent practicable")
+- **SARIF output** (`--sarif`) — findings surface in GitHub code scanning / IDEs
 - **MOSA pack** + **cyber-RMF** demonstration pack (multi-domain, content-only)
 - **SysML v2 adapter** — derive a manifest from a model (attestation → verification)
 

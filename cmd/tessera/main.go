@@ -32,6 +32,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -99,6 +100,8 @@ func checkCmd(args []string) {
 	fs.StringVar(&keyPath, "key", "tessera-ed25519.key", "ed25519 private key file (generated if absent)")
 	var noSchema bool
 	fs.BoolVar(&noSchema, "no-schema", false, "skip manifest JSON Schema validation")
+	var sarifPath string
+	fs.StringVar(&sarifPath, "sarif", "", "also write findings as SARIF 2.1.0 to this path (for code scanning / IDEs)")
 	_ = fs.Parse(args)
 
 	if packDir == "" || manifestPath == "" {
@@ -175,6 +178,13 @@ func checkCmd(args []string) {
 		writePrev(outPath, digest)
 	}
 
+	if sarifPath != "" {
+		if err := writeSARIF(sarifPath, pack.Pack, report); err != nil {
+			fail("writing sarif: %v", err)
+		}
+		fmt.Fprintf(os.Stderr, "sarif: %s\n", sarifPath)
+	}
+
 	printSummary(pack, report)
 	if outPath == "" {
 		fmt.Println(string(recBytes))
@@ -185,6 +195,66 @@ func checkCmd(args []string) {
 	if pass, _ := report["pass"].(bool); !pass {
 		os.Exit(2)
 	}
+}
+
+// writeSARIF emits findings as SARIF 2.1.0 so they appear in GitHub code scanning
+// and SARIF-aware IDEs. deny -> error, warn -> warning, waived -> note.
+func writeSARIF(path, packName string, report map[string]any) error {
+	ruleSet := map[string]bool{}
+	var results []any
+
+	add := func(key, level string) {
+		arr, _ := report[key].([]any)
+		for _, it := range arr {
+			f, _ := it.(map[string]any)
+			code, _ := f["code"].(string)
+			subj, _ := f["subject"].(string)
+			msg, _ := f["msg"].(string)
+			ruleSet[code] = true
+			results = append(results, map[string]any{
+				"ruleId":  code,
+				"level":   level,
+				"message": map[string]any{"text": msg},
+				"locations": []any{map[string]any{
+					"logicalLocations": []any{map[string]any{"fullyQualifiedName": subj}},
+				}},
+				"partialFingerprints": map[string]any{"tessera/findingId": packName + "/" + code + "/" + subj},
+				"properties":          map[string]any{"subject": subj, "pack": packName},
+			})
+		}
+	}
+	add("deny", "error")
+	add("warn", "warning")
+	add("waived", "note")
+
+	ids := make([]string, 0, len(ruleSet))
+	for id := range ruleSet {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	rules := make([]any, 0, len(ids))
+	for _, id := range ids {
+		rules = append(rules, map[string]any{"id": id, "name": id})
+	}
+
+	doc := map[string]any{
+		"$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+		"version": "2.1.0",
+		"runs": []any{map[string]any{
+			"tool": map[string]any{"driver": map[string]any{
+				"name":           "tessera",
+				"version":        toolVersion,
+				"informationUri": "https://github.com/jeranaias/tessera",
+				"rules":          rules,
+			}},
+			"results": results,
+		}},
+	}
+	b, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, b, 0o644)
 }
 
 // ---------------------------------------------------------------------------

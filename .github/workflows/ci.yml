@@ -9,6 +9,9 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +27,20 @@ jobs:
 
       - name: Build the tessera binary
         run: go build -o tessera ./cmd/tessera
+
+      - name: Generate SARIF findings (MOSA example)
+        run: |
+          ./tessera check --pack packs/mosa \
+            --manifest packs/mosa/examples/example-radio/manifest.yaml \
+            --sarif tessera.sarif || true
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tessera.sarif
+          category: tessera-mosa
 
       - name: MOSA example gate-fails as expected (exit 2)
         run: |
